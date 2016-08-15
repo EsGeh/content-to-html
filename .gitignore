@@ -1,6 +1,3 @@
 # gitignore
 
 **/.*
-
-log
-!log/placeholder

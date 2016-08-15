@@ -1,6 +1,9 @@
 module Main where
 
-import Lib
+import GetConfig( getConfig )
+import Lib( runHomepage )
+
 
 main :: IO ()
-main = runHomepage
+main =
+	runHomepage =<< getConfig

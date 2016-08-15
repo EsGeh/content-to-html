@@ -25,10 +25,12 @@ library
 executable sgHomePage-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -fno-warn-tabs -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , sgHomePage
+  build-depends:
+    base,
+    sgHomePage,
+    optparse-applicative == 0.12.*
   default-language:    Haskell2010
+  ghc-options:         -fno-warn-tabs -threaded -rtsopts -with-rtsopts=-N
 
 test-suite sgHomePage-test
   type:                exitcode-stdio-1.0

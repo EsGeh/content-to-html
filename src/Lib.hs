@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Lib(
 	Config(..),
-	MLConfig(..), mlConfig,
+	MLConfig, mlConfig,
 	runHomepage
 ) where
 
@@ -15,13 +15,13 @@ import Web.Spock.Safe
 import Data.Monoid
 import Control.Monad.Except
 import qualified Control.Monad.State as State
-import Control.Exception.Base
 import Control.Applicative
 import qualified Data.Text as T
 
 type MLConfig = ML.Config
-mlConfig = ML.Config
 
+mlConfig :: FilePath -> MLConfig
+mlConfig = ML.Config
 
 data Config
 	= Config {
@@ -58,16 +58,20 @@ routes cfg =
 		subRoutes "musicList" globState_musicList $
 			musicListRoutes cfg
 
+infoPage :: ActionM ctx a
 infoPage =
 	(getRoute >>=) $ \route ->
 	html $ renderPage $
-		Html.basePage "title"
+		Html.basePage "general info"
 		(Html.nav $
 			Html.calcNavLinks (T.pack route) routeList
 		)
 		<>
 		Html.info
 
+withMusicList ::
+	Config -> ML.OperationT (ActionM ML.MusicListState) a
+	-> ActionM ML.MusicListState a
 withMusicList cfg rest =
 	do
 		mlState <- getCtx
@@ -99,9 +103,10 @@ musicListRoutes cfg =
 				ML.addEntry =<< ML.Html.readAddEntryParams (lift . param')
 				(liftIO . print) =<< State.get
 
+routeList :: [(T.Text, T.Text)]
 routeList =
 	[ route "general info" "/"
 	, route "music list" "/musicList"
 	]
-
-route = (,)
+	where
+		route = (,)

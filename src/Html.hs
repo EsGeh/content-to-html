@@ -4,10 +4,7 @@ module Html where
 import Lucid
 
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
 import Data.Monoid
-
-import Control.Monad
 
 
 type Title = String

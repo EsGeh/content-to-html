@@ -18,7 +18,6 @@ import MusicList.Types
 
 import Data.Yaml
 import Control.Monad.State
-import Data.Maybe
 import Control.Monad.Except
 import Control.Concurrent.STM
 
@@ -30,20 +29,21 @@ data Config
 
 type OperationT m = StateT MusicList m
 
+keyFromEntry :: Entry -> Key
 keyFromEntry e =
 	(entry_artist e, entry_title e)
 
 runMLState :: MonadIO m => Config -> MusicListState -> OperationT m a -> m a
-runMLState cfg state op =
+runMLState cfg st op =
 	let
 		path = config_filename cfg
 	in
 	do
-		musicList <- liftIO $ atomically $ readTVar (mlState_ml state)
+		musicList <- liftIO $ atomically $ readTVar (mlState_ml st)
 		(val, newList) <- runStateT op musicList
 		when (newList /= musicList) $
 			do
-				liftIO $ atomically $ writeTVar (mlState_ml state) newList
+				liftIO $ atomically $ writeTVar (mlState_ml st) newList
 				liftIO $ store path newList
 		return val
 

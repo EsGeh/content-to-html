@@ -6,6 +6,7 @@ import Lib
 import Options.Applicative
 
 
+getConfig :: IO Config
 getConfig =
 	execParser parserInfo
 

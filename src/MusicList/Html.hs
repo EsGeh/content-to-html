@@ -4,14 +4,9 @@ module MusicList.Html where
 import MusicList.Types
 import Html
 
---import MusicList
 import Lucid
-
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-import Data.Monoid
-
-import Control.Monad
+import Data.String
 
 
 {-
@@ -60,6 +55,7 @@ addEntry action =
 		input_ [type_ "textarea", name_ "comment"]
 		input_ [type_ "submit", value_ "submit", method_ "post"]
 
+readAddEntryParams :: (Monad m, IsString a) => (a -> m String) -> m Entry
 readAddEntryParams getParam =
 	do
 		artist <- getParam "artist"

@@ -1,3 +1,4 @@
+--{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
 --{-# LANGUAGE TypeFamilies #-}
 module RoutesMonad where
@@ -5,7 +6,6 @@ module RoutesMonad where
 import qualified MusicList as ML
 import Web.Spock.Safe
 
-import qualified Data.Text as T
 import System.FilePath.Posix
 import Control.Monad.IO.Class
 
@@ -22,7 +22,7 @@ type RoutesM ctx = SpockCtxT (RoutesCtx ctx) (WebStateM () () GlobalState)
 --type SpockM conn sess st = SpockCtxM () conn sess st
 --type SpockCtxM ctx conn sess st = SpockCtxT ctx (WebStateM conn sess st)
 
-type ActionM ctx ctx' = SpockActionCtx (RoutesCtx ctx') () () GlobalState
+type ActionM ctx = SpockActionCtx (RoutesCtx ctx) () () GlobalState
 -- == ActionCtxT (RoutesCtx ctx) (WebStateM () () (RoutesCtx ctx))
 
 --type SpockActionCtx ctx conn sess st = ActionCtxT ctx (WebStateM conn sess st)
@@ -43,9 +43,10 @@ data GlobalState =
 		globState_musicList :: ML.MusicListState
 	}
 
-initRoutes state =
+initRoutes :: st -> RoutesCtx st
+initRoutes st =
 	RoutesCtx {
-		routesCtx_ctx = state,
+		routesCtx_ctx = st,
 		routesCtx_route = "/"
 	}
 
@@ -65,13 +66,22 @@ subRoutes subroute calcSubCtx f =
 				}
 	) f
 
-getCtx :: ActionM ctx ctx' ctx'
+getCtx :: ActionM ctx ctx
 getCtx =
 	routesCtx_ctx <$> getContext
+
+methodGet :: String -> ActionM ctx () -> RoutesM ctx ()
+methodPost :: String -> ActionM ctx () -> RoutesM ctx ()
 
 methodGet = method get
 methodPost = method post
 
+method ::
+	IsString a =>
+	(a -> ActionM ctx b -> t)
+	-> String
+	-> ActionM ctx b
+	-> t
 method meth route f =
 	meth (fromString route) $
 	do
@@ -84,6 +94,6 @@ method meth route f =
 				(liftIO . putStrLn) =<< getRoute
 			 	f
 
-getRoute :: ActionM ctx ctx' String
+getRoute :: ActionM ctx String
 getRoute =
 	routesCtx_route <$> getContext

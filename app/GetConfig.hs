@@ -2,8 +2,8 @@ module GetConfig(
 	getConfig
 ) where
 
-import Options.Applicative
 import Lib
+import Options.Applicative
 
 
 getConfig =
@@ -20,4 +20,13 @@ parseConfig =
 		( option auto $ value 8080 <>
 			long "port" <> short 'p' <> metavar "PORT"
 				<> help "listen on PORT"
+		)
+		<*> parseMLConfig
+
+parseMLConfig :: Parser MLConfig
+parseMLConfig =
+	mlConfig <$>
+		( option str $ value "musicList.yaml" <>
+			long "musicList" <> metavar "MUSIC_LIST_FILE"
+				<> help "file containing the music list"
 		)

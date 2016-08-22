@@ -2,12 +2,11 @@
 module Html where
 
 import Lucid
-
 import qualified Data.Text as T
 import Data.Monoid
 
 
-type Title = String
+type Title = T.Text
 
 basePage :: Title -> Html () -> Html ()
 basePage title content =
@@ -15,18 +14,19 @@ basePage title content =
 		head_ $ do
 			meta_ [charset_ "UTF-8"]
 			link_ [rel_ "stylesheet", href_ "http://www.w3schools.com/lib/w3.css"]
+			link_ [rel_ "stylesheet", href_ "/css/style.css"]
 			title_ $ toHtml title
 		body_ $
 			content
 
-calcNavLinks :: T.Text -> [(T.Text, T.Text)] -> Zipper (T.Text, T.Text)
+calcNavLinks :: FilePath -> [(FilePath, T.Text)] -> Zipper (FilePath, T.Text)
 calcNavLinks activeRoute =
 	(\(before, active:after) ->  (before, active, after)) .
-	break (\x -> snd x == activeRoute)
+	break (\x -> fst x == activeRoute)
 
 type Zipper a = ([a],a,[a])
 
-nav :: Zipper (T.Text, T.Text) -> Html ()
+nav :: Zipper (FilePath, T.Text) -> Html ()
 nav (before, active, after) =
 	nav_ $ ul_ [class_ "w3-navbar w3-border w3-light-blue"] $
 		mapM_ (li_ . link) before
@@ -35,26 +35,6 @@ nav (before, active, after) =
 		<>
 		mapM_ (li_ . link) after
 	where
-		link :: (T.Text, T.Text) -> Html ()
-		link (name, route) =
-			a_ [href_ route] (toHtml name)
-
-info :: Html ()
-info =
-	(textContent "info") $
-	mconcat $
-	[ section "first section" "bla"
-	, section "second section" "bli <emph> bla </emph>"
-	]
-
-textContent :: Title -> Html () -> Html ()
-textContent title sections =
-	article_ [class_ "w3-container"] $ do
-		header_ [class_ "w3-container w3-light-blue"] $ h1_ $ toHtml title
-		sections
-
-section :: Title -> Html () -> Html ()
-section title content =
-	section_ [class_ "w3-panel w3-border"] $ do
-		header_ [class_ "w3-light-blue"] $ h2_ $ toHtml title
-		p_ $ content
+		link :: (FilePath, T.Text) -> Html ()
+		link (route, name) =
+			a_ [href_ $ T.pack route] (toHtml name)

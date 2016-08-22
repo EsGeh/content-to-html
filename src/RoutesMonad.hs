@@ -1,8 +1,16 @@
---{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
---{-# LANGUAGE TypeFamilies #-}
-module RoutesMonad where
+module RoutesMonad(
+	RoutesM, ActionM,
+	GlobalState(..),
+	initRoutes,
+	subRoutes,
+	getCtx,
+	methodGet, methodPost,
+	methodGetVar,
+	getRoute
+) where
 
+import qualified CMS
 import qualified MusicList as ML
 import Web.Spock.Safe
 
@@ -40,6 +48,7 @@ data RoutesCtx ctx =
 
 data GlobalState =
 	GlobalState {
+		globState_content :: CMS.Content,
 		globState_musicList :: ML.MusicListState
 	}
 
@@ -70,20 +79,17 @@ getCtx :: ActionM ctx ctx
 getCtx =
 	routesCtx_ctx <$> getContext
 
-methodGet :: String -> ActionM ctx () -> RoutesM ctx ()
-methodPost :: String -> ActionM ctx () -> RoutesM ctx ()
+methodGetVar route f =
+	get (fromString route <//> var) $
+		\x -> routeWithCtx (route </> x) $ f x
 
-methodGet = method get
-methodPost = method post
+methodGet route f =
+	get (fromString route) $ routeWithCtx route f
 
-method ::
-	IsString a =>
-	(a -> ActionM ctx b -> t)
-	-> String
-	-> ActionM ctx b
-	-> t
-method meth route f =
-	meth (fromString route) $
+methodPost route f =
+	post (fromString route) $ routeWithCtx route f
+
+routeWithCtx route f =
 	do
 		oldCtx <- getContext
 		let oldRoute = routesCtx_route oldCtx

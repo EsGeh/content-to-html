@@ -22,6 +22,7 @@ parseConfig =
 			long "port" <> short 'p' <> metavar "PORT"
 				<> help "listen on PORT"
 		)
+		<*> parseContentConfig
 		<*> parseMLConfig
 
 parseMLConfig :: Parser MLConfig
@@ -30,4 +31,12 @@ parseMLConfig =
 		( option str $ value "musicList.yaml" <>
 			long "musicList" <> metavar "MUSIC_LIST_FILE"
 				<> help "file containing the music list"
+		)
+
+parseContentConfig :: Parser ContentConfig
+parseContentConfig =
+	contentConfig <$>
+		( option str $ value "content" <>
+			long "content" <> metavar "WEB_PAGE_CONTENT"
+				<> help "file containing content"
 		)

@@ -2,13 +2,21 @@
 module MusicList.Html where
 
 import MusicList.Types
-import Html
+import CMS.Types
 
 import Lucid
 import qualified Data.Text as T
 import Data.String
 
 
+toSections :: MusicList -> [Section]
+toSections =
+	map $ \e ->
+		Section
+			(Just $ T.concat [entry_artist e, ": ", entry_title e])
+			[Text $ entry_comment e]
+
+{-
 {-
 renderPage :: T.Text
 renderPage =
@@ -26,7 +34,7 @@ showEntry entry =
 		title = entry_title entry
 		comment = entry_comment entry
 	in
-		section (concat [artist, ": ", title]) $
+		section (Just $ T.concat [artist, ": ", title]) $
 			toHtml comment
 
 {-
@@ -46,6 +54,7 @@ showEntry entry =
 			ul_ $ mapM_ (li_ . toHtml) $
 				[ artist, title, comment ]
 -}
+-}
 
 addEntry :: T.Text -> Html ()
 addEntry action =
@@ -55,7 +64,7 @@ addEntry action =
 		input_ [type_ "textarea", name_ "comment"]
 		input_ [type_ "submit", value_ "submit", method_ "post"]
 
-readAddEntryParams :: (Monad m, IsString a) => (a -> m String) -> m Entry
+readAddEntryParams :: (Monad m, IsString a) => (a -> m T.Text) -> m Entry
 readAddEntryParams getParam =
 	do
 		artist <- getParam "artist"

@@ -1,6 +1,7 @@
 page_title: music
 page_content:
-  - article_content:
-    - section_title: Stahl
-      section_content:
+  - article_title: Some Piece
+    article_content:
+    - section_content:
+        - audio: /data/test.mp3
         - text: description

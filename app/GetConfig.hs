@@ -40,3 +40,15 @@ parseContentConfig =
 			long "content" <> metavar "WEB_PAGE_CONTENT"
 				<> help "file containing content"
 		)
+		<*>
+		( option str $ long "css" <>
+			value "css" <>
+			metavar "CSS_DIR"
+				<> help "dir containing css"
+		)
+		<*>
+		( option str $ long "data" <>
+			value "data" <>
+			metavar "DATA_DIR"
+				<> help "dir containing media data"
+		)

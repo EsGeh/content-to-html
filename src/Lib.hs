@@ -30,7 +30,7 @@ type ContentConfig = CMS.Config
 mlConfig :: FilePath -> MLConfig
 mlConfig = ML.Config
 
-contentConfig :: FilePath -> ContentConfig
+contentConfig :: FilePath -> FilePath -> FilePath -> ContentConfig
 contentConfig = CMS.Config
 
 data Config
@@ -71,12 +71,14 @@ runRoutes =
 routes :: Config -> RoutesM GlobalState ()
 routes cfg = 
 	do
-		subRoutes "/content" globState_content $
+		subRoutes "/content" (CMS.state_pages . globState_cms) $
 			contentRoutes cfg
-		methodGet "/css/style.css" $
-			file "style/css" "css/style.css"
+		subRoutes "/css" (CMS.state_stylesheets . globState_cms) $
+			resourceRoutes "style/css"
+		subRoutes "/data" (CMS.state_data . globState_cms) $
+			resourceRoutes "audio/mpeg"
 
-contentRoutes :: Config -> RoutesM CMS.Content ()
+contentRoutes :: Config -> RoutesM (CMS.Content CMS.Page) ()
 contentRoutes cfg =
 	do
 		methodGetVar "/" $ \(_ :: FilePath) ->
@@ -97,7 +99,28 @@ contentRoutes cfg =
 					(\e -> text $ T.pack $ "404: resource not found. error: " ++ e)
 					return
 
-fullPage :: CMS.Content -> FilePath -> CMS.Page -> Html ()
+resourceRoutes :: T.Text -> RoutesM (CMS.Content FilePath) ()
+resourceRoutes mediaType =
+	do
+		methodGetVar "/" $ \(_ :: FilePath) ->
+			handleErrors $
+			do
+				requested <- lift $ getRoute
+				content <- lift $ getCtx
+				page <-
+					(either throwError return =<<) $
+					runExceptT $
+					CMS.findPage requested content
+				lift $ file mediaType $ page
+		where
+			handleErrors x =
+				runExceptT x
+				>>=
+				either
+					(\e -> text $ T.pack $ "404: resource not found. error: " ++ e)
+					return
+
+fullPage :: CMS.Content CMS.Page -> FilePath -> CMS.Page -> Html ()
 fullPage content route page =
 	Html.basePage (CMS.page_title page) $
 	(Html.nav $

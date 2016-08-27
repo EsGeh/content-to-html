@@ -43,6 +43,7 @@ data Section = Section {
 data WebContent
 	= Text T.Text
 	| Image FilePath
+	| Audio FilePath
 	deriving( Show, Read, Eq, Ord, Generic  )
 
 

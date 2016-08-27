@@ -9,7 +9,7 @@ module MusicList(
 	loadState,
 	newState,
 	keyFromEntry,
-	runMLState,
+--	runMLState,
 	addEntry,
 	delEntry,
 ) where
@@ -33,6 +33,7 @@ keyFromEntry :: Entry -> Key
 keyFromEntry e =
 	(entry_artist e, entry_title e)
 
+{-
 runMLState :: MonadIO m => Config -> MusicListState -> OperationT m a -> m a
 runMLState cfg st op =
 	let
@@ -46,6 +47,9 @@ runMLState cfg st op =
 				liftIO $ atomically $ writeTVar (mlState_ml st) newList
 				liftIO $ store path newList
 		return val
+-}
+
+type MusicListState = MusicList
 
 addEntry :: MonadIO m => Entry -> OperationT m ()
 addEntry e = modify $ ([e]++)
@@ -56,8 +60,11 @@ delEntry key =
 
 newState :: (MonadIO m, MonadError String m) => m MusicListState
 newState =
+	return []
+	{-
 	liftIO $ atomically $
-		MusicListState <$> newTVar []
+	MusicListState <$> newTVar []
+	-}
 
 loadState :: (MonadIO m, MonadError String m) => Config -> m MusicListState
 loadState cfg =
@@ -67,10 +74,13 @@ loadState cfg =
 	do
 		ma <- liftIO $ load path
 		flip (either throwError) ma $
+			return
+			{-
 			\list ->
 			do
 				liftIO $ atomically $
 					MusicListState <$> newTVar list
+			-}
 
 load :: FilePath -> IO (Either String MusicList)
 load filename =

@@ -48,7 +48,7 @@ data RoutesCtx ctx =
 
 data GlobalState =
 	GlobalState {
-		globState_content :: CMS.Content,
+		globState_cms :: CMS.State ,
 		globState_musicList :: ML.MusicListState
 	}
 

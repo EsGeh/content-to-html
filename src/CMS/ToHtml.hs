@@ -9,6 +9,7 @@ import CMS.Types
 
 import Lucid
 import qualified Data.Text as T
+--import Data.Monoid
 
 
 pageToHtml :: Page -> Html ()
@@ -44,6 +45,10 @@ contentToHtml x =
 			p_ $ toHtml text
 		Image uri ->
 			img_ [src_ $ T.pack uri, alt_ "an image"]
+		Audio uri ->
+			audio_ [controls_ "hussa"] $ do
+				source_ [src_ $ T.pack uri]
+				toHtml $ T.pack "your browser seems not to support html5 audio playback"
 
 type Title = T.Text
 

@@ -52,11 +52,16 @@ contentToHtml x =
 
 type Title = T.Text
 
+headerClass :: [Attribute]
+headerClass =
+	[]
+	--[class_ "w3-container w3-light-blue"]
+
 renderArticle :: Maybe Title -> Html () -> Html ()
 renderArticle mTitle content =
 	article_ [class_ "w3-panel w3-border w3-container"] $ do
 		maybe mempty
-			(\title -> header_ [class_ "w3-container w3-light-blue"] $ h1_ $ toHtml title)
+			(\title -> header_ headerClass $ h1_ $ toHtml title)
 			mTitle
 		content
 
@@ -65,6 +70,6 @@ renderSection mTitle content =
 	section_ [] $ do
 		maybe
 			mempty
-			(\title -> header_ [class_ "w3-light-blue"] $ h2_ $ toHtml title)
+			(\title -> header_ headerClass $ h2_ $ toHtml title)
 			mTitle
 		content

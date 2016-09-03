@@ -5,7 +5,6 @@ module CMS.Types where
 import CMS.JSONOptions
 
 import qualified Data.Text as T
-import Data.Yaml
 import Data.Aeson.TH
 import GHC.Generics
 

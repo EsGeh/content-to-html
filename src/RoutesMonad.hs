@@ -11,7 +11,7 @@ module RoutesMonad(
 ) where
 
 import qualified CMS
-import qualified MusicList as ML
+import qualified ProjDB -- as ML
 import Web.Spock.Safe
 
 import System.FilePath.Posix
@@ -48,8 +48,8 @@ data RoutesCtx ctx =
 
 data GlobalState =
 	GlobalState {
-		globState_cms :: CMS.State ,
-		globState_musicList :: ML.MusicListState
+		globState_cms :: CMS.Routes ,
+		globState_projDB :: ProjDB.ProjDB
 	}
 
 initRoutes :: st -> RoutesCtx st

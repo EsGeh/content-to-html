@@ -1,3 +1,4 @@
+--{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,32 +19,35 @@ import qualified System.Directory as Dir
 import System.IO.Error
 import System.FilePath.Posix
 import Data.List
+import qualified Data.Text as T
 
-data State =
-	State {
-		state_pages :: Content Page,
-		state_stylesheets :: Content FilePath,
-		state_data :: Content FilePath
-		{-
-		state_stylesheets :: [FilePath],
-		state_data :: [FilePath]
-		-}
+
+type Routes = M.Map FilePath Resource
+type PageRoutes = M.Map FilePath Page
+type FileRoutes = M.Map FilePath FileResInfo
+
+routes_pages :: Routes -> PageRoutes
+routes_pages =
+	M.mapMaybe (\r -> case r of { PageResource page -> Just page; _ -> Nothing}) 
+
+routes_files :: Routes -> FileRoutes
+routes_files =
+	M.mapMaybe (\r -> case r of { FileResource info -> Just info; _ -> Nothing}) 
+
+data Resource
+	= PageResource Page
+	| FileResource FileResInfo
+
+data FileResInfo
+	= FileResInfo {
+		fileRes_type :: T.Text,
+		fileRes_file :: FilePath
 	}
-
-type Content res = M.Map FilePath res
-
-data Config
-	= Config {
-		config_pagesDir :: FilePath,
-		config_cssDir :: FilePath,
-		config_dataDir :: FilePath
-	}
-	deriving( Show, Read )
 
 findPage ::
-	(MonadError String m) => String -> Content res -> m res
-findPage key content =
-	let mRes = M.lookup key content in
+	(MonadError String m) => String -> Routes -> m Resource
+findPage key routes =
+	let mRes = M.lookup key routes in
 		maybe
 			(throwError $ concat ["could not find \"", key, "\"!"{-, " possible: ", show $ M.keys content-}])
 			return
@@ -51,13 +55,26 @@ findPage key content =
 
 load :: 
 	(MonadIO m, MonadError String m) =>
-	Config -> m State
-load cfg =
-	State <$>
-		loadJson (config_pagesDir cfg)
-		<*> (createMap ("/" </>) <$> getDirContents (config_cssDir cfg))
-		<*> (createMap ("/" </>) <$> getDirContents (config_dataDir cfg))
+	[FilePath] -> [FileResInfo]
+	-> m Routes
+load pages otherRes =
+	do
+		static <-
+			(fmap PageResource . M.unions) <$>
+			mapM loadJson pages
+		others <-
+			fmap M.unions $
+			forM otherRes $ \res ->
+				fmap (FileResource . FileResInfo (fileRes_type res)) <$>
+				createMap ("/" </>) <$>
+				(getDirContents $
+				fileRes_file res)
+		return $
+			M.union static others
 
+loadJson ::
+	(MonadIO m, MonadError String m, FromJSON a) =>
+	FilePath -> m (M.Map FilePath a)
 loadJson dir =
 	do
 		m <- createMap (\x -> "/" </> dropExtension x) <$> getDirContents dir
@@ -70,19 +87,6 @@ createMap toURI =
 		\path ->
 			(toURI path, path)
 	)
-
-{-
-loadJson ::
-	(FromJSON res, MonadIO m, MonadError String m) =>
-	FilePath -> m (Content res)
-loadJson dir =
-	liftM M.fromList $
-	do
-		files <- getDirContents dir
-		forM files $ \path ->
-			("/" </> dropExtension path,) <$>
-			loadResource path
--}
 
 getDirContents ::
 	(MonadIO m, MonadError String m) =>
@@ -109,16 +113,3 @@ loadResource filename =
 			(\e -> throwError $ concat ["error while loading \"", filename,"\": ", e])
 			return
 			ma
-
-{-
-loadResource ::
-	FromJSON res =>
-	FilePath -> IO (Either String res)
-loadResource filename =
-	either (Left . show) Right
-	<$> decodeFileEither filename
--}
-
-storePage :: FilePath -> Article -> IO ()
-storePage =
-	encodeFile

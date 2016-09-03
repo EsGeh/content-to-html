@@ -23,19 +23,19 @@ parseConfig =
 				<> help "listen on PORT"
 		)
 		<*> parseContentConfig
-		<*> parseMLConfig
+		<*> parseProjDBConfig
 
-parseMLConfig :: Parser MLConfig
-parseMLConfig =
+parseProjDBConfig :: Parser ProjDBConfig
+parseProjDBConfig =
 	mlConfig <$>
-		( option str $ value "musicList.yaml" <>
-			long "musicList" <> metavar "MUSIC_LIST_FILE"
-				<> help "file containing the music list"
+		( option str $ value "projDB.yaml" <>
+			long "projDB" <> metavar "PROJ_DB_FILE"
+				<> help "file containing projects data"
 		)
 
 parseContentConfig :: Parser ContentConfig
 parseContentConfig =
-	contentConfig <$>
+	ContentConfig <$>
 		( option str $ value "content" <>
 			long "content" <> metavar "WEB_PAGE_CONTENT"
 				<> help "file containing content"

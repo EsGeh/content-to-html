@@ -8,6 +8,7 @@ module ProjDB(
 	--load,
 	store,
 	allArtists, allProjects, allPersons,
+	module ProjDB.Types
 {-
 	Config(..),
 	MusicListState(..),

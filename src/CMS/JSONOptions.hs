@@ -13,7 +13,10 @@ jsonOptions = defaultOptions{
 	constructorTagModifier =
 		map toLower,
 		--stripPrefix
-	sumEncoding = ObjectWithSingleField
+	sumEncoding =
+		ObjectWithSingleField
+	--allNullaryToStringTag = False
+	--omitNothingFields = True
 	--unwrapUnaryRecords = True
 }
 

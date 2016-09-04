@@ -1,12 +1,45 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module ProjDB.Html where
 
-import ProjDB.Types
+import ProjDB.Types as ProjDB
 import CMS.Types
 
 import qualified Data.Text as T
 import Data.Maybe
 
+
+{-
+projectsList :: T.Text -> ProjDB -> Page
+projectsList title db =
+	Page title $
+	map (
+		fromMaybe (error "internal error!")
+		. flip projectToArticle db
+	) $
+	allProjects db
+-}
+
+projectToArticle :: Project -> ProjDB -> Maybe Article
+projectToArticle Project{..} _ =
+	do
+		{-
+		artist <-
+			catMaybes $ -- ??
+			map (flip lookupArtist db) $
+			project_artist project
+		-}
+		return $
+			Article (Just $ project_name) $
+			[ Section Nothing $
+				map projDataToWebContent project_data
+			]
+
+projDataToWebContent x =
+	case x of
+		ProjDB.Audio path -> CMS.Types.Audio path
+		ProjDB.Document path -> Download $ DownloadInfo "download file" path
+		--ProjDB.Document path -> CMS.Types. path
 
 artistsList :: T.Text -> ProjDB -> Page
 artistsList title db =

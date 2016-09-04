@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module CMS.ToHtml(
 	module CMS.ToHtml,
 	Html
@@ -46,9 +47,12 @@ contentToHtml x =
 		Image uri ->
 			img_ [src_ $ T.pack uri, alt_ "an image"]
 		Audio uri ->
+			p_ $
 			audio_ [controls_ "hussa"] $ do
 				source_ [src_ $ T.pack uri]
 				toHtml $ T.pack "your browser seems not to support html5 audio playback"
+		Download DownloadInfo{..} ->
+			a_ [href_ (T.pack download_filename), download_ "" ] $ toHtml $ T.unpack download_caption
 
 type Title = T.Text
 

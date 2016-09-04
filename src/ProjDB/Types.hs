@@ -1,15 +1,20 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
 module ProjDB.Types where
 
 import CMS.JSONOptions
+import qualified CMS.Types as CMS
 
 import Data.Aeson.TH
+import Data.Aeson
 import GHC.Generics
 import qualified Data.Text as T
 import qualified Data.Map as M
-import Lens.Micro.Platform
+import qualified Lens.Micro.Platform as Lns
 import qualified Language.Haskell.TH.Syntax as TH
+import Control.Applicative
 
 data ProjDB =
 	ProjDB {
@@ -38,7 +43,6 @@ lookupPerson key = M.lookup key . db_persons
 
 projectsFromArtist :: Name -> ProjDB -> [Project]
 projectsFromArtist key db =
-	-- join $
 	M.elems $
 	M.filter ((key `elem`) . project_artist) $
 	db_projects db
@@ -59,7 +63,9 @@ data Artist
 data Project
 	= Project {
 		project_name :: Name, -- key
-		project_artist :: [ArtistKey]
+		project_artist :: [ArtistKey],
+		project_data :: [ProjectData]
+		--project_data :: [CMS.WebContent]
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
@@ -71,20 +77,93 @@ data Person
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
+data ProjectData
+	= Audio AudioInfo
+	| Document DocumentInfo
+	deriving( Read, Show, Generic, Eq, Ord )
+
+type AudioInfo
+	= FilePath
+	-- = Either URI FilePath
+
+type DocumentInfo = FilePath
+
+--newtype URI = URI { fromURI :: T.Text }
+
 data Date
 	= Date
 	deriving( Read, Show, Generic, Eq, Ord )
 
 
-flip makeLensesWith ''ProjDB $
-	lensRules
-		& lensField .~ (\_ _ field -> [ TopName $ TH.mkName $ TH.nameBase field ++ "_L"])
+flip Lns.makeLensesWith ''ProjDB $
+	Lns.lensRules
+		Lns.& Lns.lensField Lns..~ (\_ _ field -> [ Lns.TopName $ TH.mkName $ TH.nameBase field ++ "_L"])
 
-$(deriveJSON jsonOptions ''Entry)
-$(deriveJSON jsonOptions ''Artist)
-$(deriveJSON jsonOptions ''Project)
+-- $(deriveJSON jsonOptions ''Entry)
+-- $(deriveJSON jsonOptions ''Artist)
+-- $(deriveJSON jsonOptions ''Project)
 $(deriveJSON jsonOptions ''Person)
 $(deriveJSON jsonOptions ''Date)
+-- $(deriveJSON jsonOptions ''ProjectData)
+
+instance FromJSON Entry where
+	parseJSON (Object x) =
+		ArtistEntry <$> (parseJSON =<< x .: "artist")
+		<|>
+		ProjectEntry <$> (parseJSON =<< x .: "project")
+		<|>
+		PersonEntry <$> (parseJSON =<< x .: "person")
+
+instance ToJSON Entry where
+	toJSON x =
+		case x of
+			ArtistEntry x -> object [ "artist" .= toJSON x ]
+			ProjectEntry x -> object [ "project" .= toJSON x ]
+			PersonEntry x -> object [ "person" .= toJSON x ]
+
+instance FromJSON Artist where
+	parseJSON (Object x) =
+		Artist <$>
+		x.: "name" <*>
+		x.:? "persons" .!= []
+
+instance ToJSON Artist where
+	toJSON Artist{..} = object $
+		[ "name" .= artist_name
+		]
+		++ listMaybeEmpty "persons" artist_persons
+
+instance FromJSON ProjectData where
+	parseJSON (Object x) =
+		Audio <$> x.: "audio"
+		<|>
+		Document <$> x.: "document"
+
+instance ToJSON ProjectData where
+	toJSON x =
+		case x of
+			Audio x' -> object $ ["audio" .= x']
+			Document x' -> object $ ["document" .= x']
+
+instance FromJSON Project where
+	parseJSON (Object x) =
+		Project <$>
+		x.: "name" <*>
+		x.: "artist" <*>
+		x.:? "data" .!= []
+
+instance ToJSON Project where
+	toJSON (Project {..}) = object $
+		[ "name".= project_name
+		, "artist" .= project_artist
+		]
+		++
+		listMaybeEmpty "data" project_data
+
+listMaybeEmpty fieldName value =
+	case value of
+		[] -> []
+		_ -> [ fieldName .= value ]
 
 projDBFromEntries :: [Entry] -> ProjDB
 projDBFromEntries =
@@ -112,13 +191,13 @@ projDBDef = ProjDB M.empty M.empty M.empty
 
 insertArtist :: Artist -> ProjDB -> ProjDB
 insertArtist x =
-	over db_artists_L $
+	Lns.over db_artists_L $
 		M.insert (artist_name x) x
 insertPerson x =
-	over db_persons_L $
+	Lns.over db_persons_L $
 		M.insert (person_name x) x
 insertProject x =
-	over db_projects_L $
+	Lns.over db_projects_L $
 		M.insert (project_name x) x
 
 {-

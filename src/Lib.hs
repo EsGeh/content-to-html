@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
 module Lib(
 	Config(..),
 	ProjDBConfig, mlConfig,
@@ -17,10 +18,12 @@ import qualified Html
 
 import Web.Spock.Safe
 import Lucid
+import System.FilePath.Posix
 import qualified Data.Map as M
 import Data.Monoid
 import Control.Monad.Except
 import qualified Data.Text as T
+import Data.Maybe
 
 type ProjDBConfig = ProjDB.Config
 
@@ -35,22 +38,57 @@ data ContentConfig
 loadContent ::
 	(MonadIO m, MonadError String m) =>
 	ProjDB.ProjDB -> ContentConfig -> m CMS.Routes
-loadContent db cfg =
-	do
-		(M.insert "/content/artists" $ CMS.PageResource $ ProjDB.Html.artistsList "artists I like" db) <$>
-			CMS.load
-				[config_pagesDir cfg]
-				[ CMS.FileResInfo "style/css" "css"
-				, CMS.FileResInfo "audio/mpeg" "data"
-				]
+loadContent db ContentConfig{..} =
+	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
+	(M.insert "/content/ownProjects" $ CMS.PageResource $
+		CMS.Page "own projects" $
+		catMaybes $
+		(map $ flip ProjDB.Html.projectToArticle db) $
+		filter (("Samuel Gfrörer" `elem`) . ProjDB.project_artist) $
+		catMaybes $
+		(map $ flip ProjDB.lookupProject db) $
+		ProjDB.allProjects db
+	) <$>
+	(M.insert "/content/artists" $ CMS.PageResource $
+		CMS.Page "artists I like" $
+		catMaybes $
+		(map $ flip ProjDB.Html.artistToArticle db) $
+		filter ((/="Samuel Gfrörer")) $
+		ProjDB.allArtists db
+	) <$>
+	(
+		M.unions <$>
+		sequence
+		[ flip CMS.loadYamlInDir config_pagesDir $
+			\path ->
+				case takeExtension path of
+					".yaml" -> Just $
+						"content" </> dropExtension path
+					_ -> Nothing
+		, flip CMS.loadFilesInDir config_dataDir $
+			\path ->
+				case takeExtension path of
+					".mp3" -> Just $
+						( CMS.URI $ "data" </> path
+						, CMS.ResType $ "audio/mpeg"
+						)
+					_ -> Just $
+						( CMS.URI $ "data" </> path
+						, CMS.ResType $ "unknown"
+						)
+		, flip CMS.loadFilesInDir config_cssDir $
+			\path ->
+				case takeExtension path of
+					".css" -> Just $
+						( CMS.URI $ "css" </> path
+						, CMS.ResType $ "style/css"
+						)
+					_ -> Nothing
+		]
+	)
 
 mlConfig :: FilePath -> ProjDBConfig
 mlConfig = ProjDB.Config
-
-{-
-contentConfig :: FilePath -> FilePath -> FilePath -> ContentConfig
-contentConfig = CMS.Config
--}
 
 data Config
 	= Config {
@@ -96,23 +134,6 @@ routes _ =
 			resourceRoutes
 		subRoutes "/data" globState_cms $
 			resourceRoutes
-		{-
-		subRoutes "/projects" globState_projDB $
-			projectsRoutes
-		-}
-
-{-
-projectsRoutes :: RoutesM ProjDB.ProjDB ()
-projectsRoutes =
-	methodGet "/" $
-		do
-			(db :: ProjDB.ProjDB) <- getCtx -- :: ActionM ProjDB.ProjDB ProjDB.ProjDB
-			liftIO $ print $ ProjDB.allArtists db
-			html $ renderPage $
-				mconcat $ map CMS.articleToHtml $
-				map (fromMaybe undefined . flip ProjDB.Html.artistToArticle db) $
-				ProjDB.allArtists db
--}
 
 contentRoutes :: RoutesM CMS.Routes ()
 contentRoutes =

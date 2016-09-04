@@ -1,9 +1,0 @@
-# proj data
-
-- artistentry:
-    artist_name: "artistX"
-    artist_persons: []
-
-- projectentry:
-    project_name: "Project"
-    project_artist: ["artistX"]

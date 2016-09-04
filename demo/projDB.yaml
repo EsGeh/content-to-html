@@ -1,0 +1,9 @@
+# proj data
+
+- artist:
+    name: "artistX"
+    persons: []
+
+- project:
+    name: "Project"
+    artist: ["artistX"]

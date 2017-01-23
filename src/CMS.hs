@@ -57,6 +57,7 @@ findPage key routes =
 			mRes
 
 newtype URI = URI { fromURI :: FilePath }
+	deriving( Eq, Ord, Show, Read )
 newtype ResType = ResType { fromResType :: T.Text }
 
 loadFilesInDir ::
@@ -65,37 +66,45 @@ loadFilesInDir ::
 	(FilePath -> Maybe (URI, ResType))
 	-> FilePath -> m (M.Map FilePath Resource)
 loadFilesInDir calcResParams dirPath =
-	(M.fromList . catMaybes) <$>
-	map temp <$>
-	(ls dirPath :: m [FilePath])
-	where
-		temp :: FilePath -> Maybe (FilePath, Resource)
-		temp path =
-			do
-				(uri, resType) <- calcResParams path :: Maybe (URI, ResType)
-				return $
-					( "/" </> fromURI uri
-					, FileResource $
-						FileResInfo{
-							fileRes_type = fromResType resType,
-							fileRes_file = dirPath </> path 
-						}
-					)
+	loadFilesInDir' `flip` dirPath $ \path ->
+	return $ do
+		(uri, resType) <- calcResParams path
+		return $
+			( URI $ "/" </> fromURI uri
+			, FileResource $
+				FileResInfo{
+					fileRes_type = fromResType resType,
+					fileRes_file = dirPath </> path 
+				}
+			)
 
 loadYamlInDir ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
-	(FilePath -> Maybe FilePath) -> FilePath -> m (M.Map FilePath Resource)
+	(FilePath -> Maybe FilePath)
+	-> FilePath -> m (M.Map FilePath Resource)
 loadYamlInDir toURI dirPath =
-	((fmap PageResource . M.fromList) <$>) $
-	(mapM temp =<<) $
-	(catMaybes . map (\x -> (,x) <$> toURI x)) <$>
-	(ls dirPath :: m [FilePath])
+	loadFilesInDir' `flip` dirPath $ \path ->
+		maybe (return $ Nothing) `flip` toURI path $ \uri ->
+				Just <$>
+				(URI $ "/" </> uri,) <$>
+				PageResource <$>
+				(loadYaml $ dirPath </> path)
+
+loadFilesInDir' ::
+	forall m .
+	(MonadIO m, MonadError String m) =>
+	(FilePath -> m (Maybe (URI, Resource)))
+	-> FilePath -> m (M.Map FilePath Resource)
+loadFilesInDir' calcRes dirPath =
+	calc =<< (ls dirPath :: m [FilePath])
 	where
-		temp :: (FilePath, FilePath) -> m (FilePath, Page)
-		temp (uri, path) =
-			("/" </> uri,) <$>
-			(loadYaml $ dirPath </> path)
+		calc :: [FilePath] -> m Routes
+		calc paths = 
+			(M.fromList . map (mapFst fromURI) . catMaybes) <$>
+			mapM calcRes paths
+
+mapFst f (a,b) = (f a, b)
 
 loadYaml ::
 	(FromJSON res, MonadIO m, MonadError String m) =>
@@ -122,76 +131,3 @@ ls dir =
 			(throwError . show)
 			return
 			mRet
-
-createMap :: (FilePath -> FilePath) -> [FilePath] -> M.Map FilePath FilePath
-createMap toURI =
-	M.fromList .
-	(map $
-		\path ->
-			(toURI path, path)
-	)
-
-{-
-load :: 
-	(MonadIO m, MonadError String m) =>
-	(FilePath -> FilePath)
-	-> [FilePath] -> [FileResInfo]
-	-> m Routes
-load pathToURI pages otherRes =
-	do
-		static <-
-			(fmap PageResource . M.unions) <$>
-			mapM (loadJson pathToURI) pages
-		others <-
-			fmap M.unions $
-			forM otherRes $ \res ->
-				fmap (FileResource . FileResInfo (fileRes_type res)) <$>
-				createMap (pathToURI . ("/" </>)) <$>
-				(getDirContents $
-				fileRes_file res)
-		return $
-			M.union static others
-
-loadJson ::
-	(MonadIO m, MonadError String m, FromJSON a) =>
-	(FilePath -> FilePath)
-	-> FilePath -> m (M.Map FilePath a)
-loadJson toURI dir =
-	do
-		m <- createMap ( toURI . ("/" </>)) <$> getDirContents dir
-		mapM loadResource m
-
-createMap :: (FilePath -> FilePath) -> [FilePath] -> M.Map FilePath FilePath
-createMap toURI =
-	M.fromList .
-	(map $
-		\path ->
-			(toURI path, path)
-	)
-
-getDirContents ::
-	(MonadIO m, MonadError String m) =>
-	FilePath -> m [FilePath]
-getDirContents dir =
-	map (dir </>) <$> 
-	filter (not . ("." `isPrefixOf`)) <$>
-	do
-		mRet<- liftIO (tryIOError $ Dir.getDirectoryContents dir)
-		either
-			(throwError . show)
-			return
-			mRet
-
-loadResource ::
-	(FromJSON res, MonadIO m, MonadError String m) =>
-	FilePath -> m res
-loadResource filename =
-	do
-		ma <- liftIO $ 
-			either (Left . show) Right
-			<$> decodeFileEither filename
-		either
-			(\e -> throwError $ concat ["error while loading \"", filename,"\": ", e])
-			return
-			ma
--}

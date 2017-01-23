@@ -23,7 +23,7 @@ library
     Html,
     RoutesMonad,
     CMS,
-    CMS.Types, CMS.ToHtml
+    CMS.Types, CMS.ToHtml, CMS.JSONOptions
   build-depends:
     base >= 4.7 && < 5,
     Spock == 0.10.*,

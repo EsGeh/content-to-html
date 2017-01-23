@@ -27,6 +27,14 @@ import Data.Maybe
 
 type ProjDBConfig = ProjDB.Config
 
+data Config
+	= Config {
+		config_port :: Int,
+		config_content :: ContentConfig,
+		config_projDB :: ProjDB.Config
+	}
+	deriving (Show, Read)
+
 data ContentConfig
 	= ContentConfig {
 		config_pagesDir :: FilePath,
@@ -34,6 +42,27 @@ data ContentConfig
 		config_dataDir :: FilePath
 	}
 	deriving( Show, Read )
+
+runHomepage :: Config -> IO ()
+runHomepage conf =
+	let
+		port = config_port conf
+		contentCfg = config_content conf
+	in
+		handleErrors' $
+		do
+			db <- ProjDB.loadState (config_projDB conf) -- <|> ProjDB.newState
+			content <-
+				(loadContent db contentCfg `catchError` \e -> throwError ("error while loading content: " ++ e))
+			liftIO $ runSpock port $
+					spock (spockCfg $ GlobalState content db) $
+					runRoutes (routes conf)
+	where
+		spockCfg initState =
+			defaultSpockCfg () PCNoDatabase initState
+		handleErrors' x =
+			runExceptT x
+			>>= either putStrLn return
 
 loadContent ::
 	(MonadIO m, MonadError String m) =>
@@ -89,35 +118,6 @@ loadContent db ContentConfig{..} =
 
 mlConfig :: FilePath -> ProjDBConfig
 mlConfig = ProjDB.Config
-
-data Config
-	= Config {
-		config_port :: Int,
-		config_content :: ContentConfig,
-		config_projDB :: ProjDB.Config
-	}
-	deriving (Show, Read)
-
-runHomepage :: Config -> IO ()
-runHomepage conf =
-	let
-		port = config_port conf
-		contentCfg = config_content conf
-	in
-		handleErrors' $
-		do
-			db <- ProjDB.loadState (config_projDB conf) -- <|> ProjDB.newState
-			content <-
-				(loadContent db contentCfg `catchError` \e -> throwError ("error while loading content: " ++ e))
-			liftIO $ runSpock port $
-					spock (spockCfg $ GlobalState content db) $
-					runRoutes (routes conf)
-	where
-		spockCfg initState =
-			defaultSpockCfg () PCNoDatabase initState
-		handleErrors' x =
-			runExceptT x
-			>>= either putStrLn return
 
 runRoutes ::
 	RoutesM GlobalState () -> SpockM () () GlobalState ()

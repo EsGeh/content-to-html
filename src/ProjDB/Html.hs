@@ -38,8 +38,8 @@ projectToArticle Project{..} _ =
 projDataToWebContent x =
 	case x of
 		ProjDB.Audio path -> CMS.Types.Audio path
-		ProjDB.Document path -> Download $ DownloadInfo "download file" path
-		--ProjDB.Document path -> CMS.Types. path
+		ProjDB.Document DocumentInfo{..} ->
+			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_path
 
 artistsList :: T.Text -> ProjDB -> Page
 artistsList title db =

@@ -101,6 +101,10 @@ loadContent db ContentConfig{..} =
 						( CMS.URI $ "data" </> path
 						, CMS.ResType $ "audio/mpeg"
 						)
+					".pdf" -> Just $
+						( CMS.URI $ "data" </> path
+						, CMS.ResType $ "audio/mpeg"
+						)
 					_ -> Just $
 						( CMS.URI $ "data" </> path
 						, CMS.ResType $ "unknown"

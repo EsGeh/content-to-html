@@ -86,7 +86,12 @@ type AudioInfo
 	= FilePath
 	-- = Either URI FilePath
 
-type DocumentInfo = FilePath
+data DocumentInfo 
+	= DocumentInfo {
+		doc_descr :: T.Text,
+		doc_path :: FilePath
+	}
+	deriving( Read, Show, Generic, Eq, Ord )
 
 --newtype URI = URI { fromURI :: T.Text }
 
@@ -137,13 +142,25 @@ instance FromJSON ProjectData where
 	parseJSON (Object x) =
 		Audio <$> x.: "audio"
 		<|>
-		Document <$> x.: "document"
+		Document <$> (parseJSON =<< x.: "document")
 
 instance ToJSON ProjectData where
 	toJSON x =
 		case x of
 			Audio x' -> object $ ["audio" .= x']
 			Document x' -> object $ ["document" .= x']
+
+instance FromJSON DocumentInfo where
+	parseJSON (Object x) =
+		DocumentInfo <$>
+		x.: "description" <*>
+		x.: "path"
+
+instance ToJSON DocumentInfo where
+	toJSON DocumentInfo{..} = object $ [
+			"description" .= doc_descr,
+			"path" .= doc_path
+		]
 
 instance FromJSON Project where
 	parseJSON (Object x) =

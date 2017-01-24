@@ -1,12 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module ProjDB.Html where
+module ProjDB.ToWebDoc(
+	projectToArticle,
+	artistToArticle,
+	-- artistsList, -- needed?
+) where
 
 import ProjDB.Types as ProjDB
-import CMS.Types
+import WebDocumentStructure.Types as WebDocs
 
 import qualified Data.Text as T
-import Data.Maybe
+--import Data.Maybe
 
 
 {-
@@ -35,17 +39,20 @@ projectToArticle Project{..} _ =
 				map projDataToWebContent project_data
 			]
 
+projDataToWebContent :: ProjectData -> WebContent
 projDataToWebContent x =
 	case x of
-		ProjDB.Audio path -> CMS.Types.Audio path
+		ProjDB.Audio path -> WebDocs.Audio path
 		ProjDB.Document DocumentInfo{..} ->
 			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_path
 
+{-
 artistsList :: T.Text -> ProjDB -> Page
 artistsList title db =
 	Page title $
 	map (fromMaybe (error "internal error!") . flip artistToArticle db) $
 	allArtists db
+-}
 
 artistToArticle :: ArtistKey -> ProjDB -> Maybe Article
 artistToArticle key db =
@@ -64,28 +71,3 @@ artistToArticle key db =
 					projects
 				]
 			]
-
-{-
-toSections :: MusicList -> [Section]
-toSections =
-	map $ \e ->
-		Section
-			(Just $ T.concat [entry_artist e, ": ", entry_title e])
-			[Text $ entry_comment e]
-
-addEntry :: T.Text -> Html ()
-addEntry action =
-	form_ [action_ action, method_ "post"] $ do
-		input_ [type_ "text", name_ "artist"] -- (toHtml "artist")
-		input_ [type_ "text", name_ "title"]
-		input_ [type_ "textarea", name_ "comment"]
-		input_ [type_ "submit", value_ "submit", method_ "post"]
-
-readAddEntryParams :: (Monad m, IsString a) => (a -> m T.Text) -> m Entry
-readAddEntryParams getParam =
-	do
-		artist <- getParam "artist"
-		title <- getParam "title"
-		comment <- getParam "comment"
-		return $ Entry artist title comment
--}

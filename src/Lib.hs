@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 module Lib(
 	Config(..),
 	ProjDBConfig, mlConfig,
@@ -10,11 +11,12 @@ module Lib(
 ) where
 
 import qualified CMS
+import qualified WebDocumentStructure as WebDocs
 import qualified ProjDB
-import qualified ProjDB.Html -- as .Html
+import qualified ProjDB.ToWebDoc -- as .Html
 import RoutesMonad
-import RenderPage
 import qualified Html
+import Utils( mapSnd )
 
 import Web.Spock.Safe
 import Lucid
@@ -68,55 +70,41 @@ loadContent ::
 	(MonadIO m, MonadError String m) =>
 	ProjDB.ProjDB -> ContentConfig -> m CMS.Routes
 loadContent db ContentConfig{..} =
-	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
-	(M.insert "/content/ownProjects" $ CMS.PageResource $
-		CMS.Page "own projects" $
+	((\x -> do{ liftIO $ print x; return x} ) =<<) $
+
+	(CMS.addRoute "/content/ownProjects" $ CMS.PageResource $
+		WebDocs.Page "own projects" $
 		catMaybes $
-		(map $ flip ProjDB.Html.projectToArticle db) $
+		(map $ flip ProjDB.ToWebDoc.projectToArticle db) $
 		filter (("Samuel Gfrörer" `elem`) . ProjDB.project_artist) $
 		catMaybes $
 		(map $ flip ProjDB.lookupProject db) $
 		ProjDB.allProjects db
 	) <$>
-	(M.insert "/content/artists" $ CMS.PageResource $
-		CMS.Page "artists I like" $
+	(CMS.addRoute "/content/artists" $ CMS.PageResource $
+		WebDocs.Page "artists I like" $
 		catMaybes $
-		(map $ flip ProjDB.Html.artistToArticle db) $
+		(map $ flip ProjDB.ToWebDoc.artistToArticle db) $
 		filter ((/="Samuel Gfrörer")) $
 		ProjDB.allArtists db
 	) <$>
+
 	(
-		M.unions <$>
+		CMS.combineRoutes <$>
 		sequence
-		[ flip CMS.loadYamlInDir config_pagesDir $
-			\path ->
+		[
+			CMS.loadFilesInDir `flip` config_pagesDir $ \path ->
 				case takeExtension path of
-					".yaml" -> Just $
-						"content" </> dropExtension path
-					_ -> Nothing
-		, flip CMS.loadFilesInDir config_dataDir $
-			\path ->
-				case takeExtension path of
-					".mp3" -> Just $
-						( CMS.URI $ "data" </> path
-						, CMS.ResType $ "audio/mpeg"
-						)
-					".pdf" -> Just $
-						( CMS.URI $ "data" </> path
-						, CMS.ResType $ "audio/mpeg"
-						)
-					_ -> Just $
-						( CMS.URI $ "data" </> path
-						, CMS.ResType $ "unknown"
-						)
-		, flip CMS.loadFilesInDir config_cssDir $
-			\path ->
-				case takeExtension path of
-					".css" -> Just $
-						( CMS.URI $ "css" </> path
-						, CMS.ResType $ "style/css"
-						)
-					_ -> Nothing
+					".yaml" ->
+						Just <$>
+							( CMS.URI $ "/" </> "content" </> dropExtension path, ) <$>
+							CMS.PageResource <$>
+							CMS.loadYaml (config_pagesDir </> path)
+					_ -> return $ Nothing
+		, CMS.loadFilesInDir `flip` config_dataDir $
+				return . CMS.defLoadDirInfo "data" config_dataDir
+		, CMS.loadFilesInDir `flip` config_cssDir $
+				return . CMS.defLoadDirInfo "css" config_cssDir
 		]
 	)
 
@@ -151,18 +139,8 @@ contentRoutes =
 					CMS.findPage requested routes'
 				case resource of
 					CMS.PageResource page ->
-						(lift . html . renderPage . fullPage (CMS.routes_pages routes') requested) page
+						(lift . html . Html.renderPage . fullPage (CMS.routes_pages routes') requested) page
 					_ -> throwError $ "resource not found!"
-
-handleErrors ::
-	ExceptT String (ActionM ctx) a
-	-> ActionM ctx a
-handleErrors x =
-	runExceptT x
-	>>=
-	either
-		(\e -> text $ T.pack $ "404: resource not found. error: " ++ e)
-		return
 
 resourceRoutes :: RoutesM CMS.Routes ()
 resourceRoutes =
@@ -176,20 +154,27 @@ resourceRoutes =
 					CMS.findPage requested content
 				case resource of
 					CMS.FileResource info ->
-						lift $ file (CMS.fileRes_type info) $ CMS.fileRes_file info
+						lift $ file (CMS.fromResType $ CMS.fileRes_type info) $ CMS.fileRes_file info
 					_ -> throwError $ "resource not found!"
 
-fullPage :: CMS.PageRoutes -> FilePath -> CMS.Page -> Html ()
+fullPage :: CMS.PageRoutes -> FilePath -> WebDocs.Page -> Html ()
 fullPage content route page =
-	Html.basePage (CMS.page_title page) $
+	Html.basePage (WebDocs.page_title page) $
 	(Html.nav $
 		Html.calcNavLinks route $
-		map (mapSnd CMS.page_title) $
+		map (mapSnd WebDocs.page_title) $
 		M.toList $
 		content
 	)
 	<>
-	CMS.pageToHtml page
+	WebDocs.pageToHtml page
 
-mapSnd :: (b -> c) -> (a, b) -> (a, c)
-mapSnd f (a,b) = (a, f b)
+handleErrors ::
+	ExceptT String (ActionM ctx) a
+	-> ActionM ctx a
+handleErrors x =
+	runExceptT x
+	>>=
+	either
+		(\e -> text $ T.pack $ "404: resource not found. error: " ++ e)
+		return

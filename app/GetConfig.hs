@@ -11,6 +11,7 @@ getConfig =
 	execParser parserInfo
 
 
+parserInfo :: ParserInfo Config
 parserInfo =
 	info (helper <*> parseConfig) $
 		fullDesc

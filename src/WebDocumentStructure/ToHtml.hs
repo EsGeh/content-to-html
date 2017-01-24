@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module CMS.ToHtml(
-	module CMS.ToHtml,
+module WebDocumentStructure.ToHtml(
+	module WebDocumentStructure.ToHtml,
 	Html
 ) where
 
 
-import CMS.Types
+import WebDocumentStructure.Types
 
 import Lucid
 import qualified Data.Text as T
@@ -53,8 +53,6 @@ contentToHtml x =
 				toHtml $ T.pack "your browser seems not to support html5 audio playback"
 		Download DownloadInfo{..} ->
 			a_ [href_ (T.pack download_filename), download_ "" ] $ toHtml $ T.unpack download_caption
-
-type Title = T.Text
 
 headerClass :: [Attribute]
 headerClass =

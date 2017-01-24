@@ -79,16 +79,20 @@ getCtx :: ActionM ctx ctx
 getCtx =
 	routesCtx_ctx <$> getContext
 
+methodGetVar :: String -> (FilePath -> ActionM ctxt ()) -> RoutesM ctxt ()
 methodGetVar route f =
 	get (fromString route <//> var) $
 		\x -> routeWithCtx (route </> x) $ f x
 
+methodGet :: String -> ActionM ctxt () -> RoutesM ctxt ()
 methodGet route f =
 	get (fromString route) $ routeWithCtx route f
 
+methodPost :: String -> ActionM ctxt () -> RoutesM ctxt ()
 methodPost route f =
 	post (fromString route) $ routeWithCtx route f
 
+routeWithCtx :: String -> ActionM ctxt res -> ActionM ctxt res
 routeWithCtx route f =
 	do
 		oldCtx <- getContext

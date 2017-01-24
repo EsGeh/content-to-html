@@ -2,10 +2,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module ProjDB.Types where
 
-import CMS.JSONOptions
-import qualified CMS.Types as CMS
+import WebDocumentStructure.JSONOptions
 
 import Data.Aeson.TH
 import Data.Aeson
@@ -65,7 +65,7 @@ data Project
 		project_name :: Name, -- key
 		project_artist :: [ArtistKey],
 		project_data :: [ProjectData]
-		--project_data :: [CMS.WebContent]
+		--project_data :: [WebDocsWebContent]
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
@@ -118,10 +118,10 @@ instance FromJSON Entry where
 		ProjectEntry <$> (parseJSON =<< x .: "project")
 		<|>
 		PersonEntry <$> (parseJSON =<< x .: "person")
+	parseJSON _ = mempty
 
 instance ToJSON Entry where
-	toJSON x =
-		case x of
+	toJSON = \case
 			ArtistEntry x -> object [ "artist" .= toJSON x ]
 			ProjectEntry x -> object [ "project" .= toJSON x ]
 			PersonEntry x -> object [ "person" .= toJSON x ]
@@ -131,6 +131,7 @@ instance FromJSON Artist where
 		Artist <$>
 		x.: "name" <*>
 		x.:? "persons" .!= []
+	parseJSON _ = mempty
 
 instance ToJSON Artist where
 	toJSON Artist{..} = object $
@@ -143,6 +144,7 @@ instance FromJSON ProjectData where
 		Audio <$> x.: "audio"
 		<|>
 		Document <$> (parseJSON =<< x.: "document")
+	parseJSON _ = mempty
 
 instance ToJSON ProjectData where
 	toJSON x =
@@ -155,6 +157,7 @@ instance FromJSON DocumentInfo where
 		DocumentInfo <$>
 		x.: "description" <*>
 		x.: "path"
+	parseJSON _ = mempty
 
 instance ToJSON DocumentInfo where
 	toJSON DocumentInfo{..} = object $ [
@@ -168,6 +171,7 @@ instance FromJSON Project where
 		x.: "name" <*>
 		x.: "artist" <*>
 		x.:? "data" .!= []
+	parseJSON _ = mempty
 
 instance ToJSON Project where
 	toJSON (Project {..}) = object $
@@ -177,6 +181,9 @@ instance ToJSON Project where
 		++
 		listMaybeEmpty "data" project_data
 
+listMaybeEmpty ::
+	(ToJSON a, KeyValue k) =>
+	T.Text -> [a] -> [k]
 listMaybeEmpty fieldName value =
 	case value of
 		[] -> []
@@ -204,37 +211,18 @@ projDBToEntries db =
 	++
 	(fmap PersonEntry $ M.elems $ db_persons db)
 
+projDBDef :: ProjDB
 projDBDef = ProjDB M.empty M.empty M.empty
 
 insertArtist :: Artist -> ProjDB -> ProjDB
 insertArtist x =
 	Lns.over db_artists_L $
 		M.insert (artist_name x) x
+insertPerson :: Person -> ProjDB -> ProjDB
 insertPerson x =
 	Lns.over db_persons_L $
 		M.insert (person_name x) x
+insertProject :: Project -> ProjDB -> ProjDB
 insertProject x =
 	Lns.over db_projects_L $
 		M.insert (project_name x) x
-
-{-
-
-type MusicList = [Entry]
-
-data Entry
-	= Entry {
-		entry_artist :: T.Text,
-		entry_title :: T.Text,
-		entry_comment :: T.Text
-	}
-	deriving( Read, Show, Generic, Eq, Ord )
-
-type Key = (T.Text, T.Text) -- Artist, Title
-
-{-
-instance FromJSON Entry
-instance ToJSON Entry
--}
-
-$(deriveJSON jsonOptions ''Entry)
--}

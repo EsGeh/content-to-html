@@ -2,9 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
-module CMS.Types where
+module WebDocumentStructure.Types where
 
-import CMS.JSONOptions
+import WebDocumentStructure.JSONOptions
 
 import qualified Data.Text as T
 import Data.Aeson.TH
@@ -14,20 +14,20 @@ import GHC.Generics
 
 data Page
 	= Page {
-		page_title :: T.Text,
+		page_title :: Title,
 		page_content :: [Article]
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
 data Article
 	= Article {
-		article_title :: Maybe T.Text,
+		article_title :: Maybe Title,
 		article_content :: [Section]
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
 data Section = Section {
-	section_title :: Maybe T.Text,
+	section_title :: Maybe Title,
 	section_content:: [WebContent]
 }
 	deriving( Show, Read, Eq, Ord, Generic )
@@ -46,11 +46,14 @@ data DownloadInfo
 	}
 	deriving( Show, Read, Eq, Ord, Generic  )
 
+type Title = T.Text
+
 instance FromJSON DownloadInfo where
 	parseJSON (Object x) =
 		DownloadInfo <$>
 		x.: "caption" <*>
 		x.: "path"
+	parseJSON _ = mempty
 
 instance ToJSON DownloadInfo where
 	toJSON DownloadInfo{..} = object $

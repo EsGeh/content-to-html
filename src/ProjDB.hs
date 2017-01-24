@@ -2,12 +2,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module ProjDB(
 	Config(..),
-	ProjDB,
+	ProjDB(..),
 	loadState,
 	newState,
 	--load,
 	store,
-	allArtists, allProjects, allPersons,
+	-- allArtists, allProjects, allPersons,
 	module ProjDB.Types
 {-
 	Config(..),

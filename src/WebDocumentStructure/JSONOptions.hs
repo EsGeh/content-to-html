@@ -1,4 +1,4 @@
-module CMS.JSONOptions where
+module WebDocumentStructure.JSONOptions where
 
 
 import Data.Aeson.TH

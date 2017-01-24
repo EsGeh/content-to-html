@@ -17,13 +17,15 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
   other-modules:
-    RenderPage,
+    Utils,
     ProjDB,
-    ProjDB.Html, ProjDB.Types,
+    ProjDB.ToWebDoc, ProjDB.Types,
     Html,
     RoutesMonad,
     CMS,
-    CMS.Types, CMS.ToHtml, CMS.JSONOptions
+    WebDocumentStructure,
+    WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
+    WebDocumentStructure.JSONOptions
   build-depends:
     base >= 4.7 && < 5,
     Spock == 0.10.*,

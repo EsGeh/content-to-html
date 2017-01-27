@@ -10,17 +10,14 @@ module Lib(
 	runHomepage
 ) where
 
-import qualified CMS
+import qualified ContentAndRoutes as CMS
 import qualified WebDocumentStructure as WebDocs
 import qualified ProjDB
 import qualified ProjDB.ToWebDoc -- as .Html
-import RoutesMonad
 import qualified Html
-import Utils( mapSnd )
 
 import Web.Spock.Safe
 import Lucid
-import qualified Data.Map as M
 import Data.Monoid
 import Control.Monad.Except
 import qualified Data.Text as T
@@ -37,20 +34,21 @@ data Config
 	}
 	deriving (Show, Read)
 
-{-
-newtype SharedDirsConfig
-	= SharedDirsConfig {
-		sharedDirs :: [DirConfig]
-	}
-	deriving( Show, Read )
--}
-
 data DirConfig
 	= DirConfig {
 		dirConfig_path :: FilePath,
 		dirConfig_uriPrefix :: FilePath
 	}
 	deriving( Show, Read )
+
+type RoutesM = SpockM DBConn Session GlobalState
+
+type DBConn = ()
+type Session = ()
+type GlobalState = ()
+
+initState :: GlobalState
+initState = ()
 
 defDirConfig :: FilePath -> DirConfig
 defDirConfig path = DirConfig path path
@@ -91,7 +89,7 @@ loadSharedData ::
 	(MonadIO m, MonadError String m) =>
 	ProjDB.ProjDB -> [DirConfig] -> m CMS.Routes
 loadSharedData db sharedDirs =
-	((\x -> do{ liftIO $ print x; return x} ) =<<) $
+	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
 	fmap (
 		(CMS.addRoute (CMS.toURI "/content/artists") $ CMS.PageResource $
 			ProjDB.ToWebDoc.artistsPage "artists I like" `flip` db $ (/="Samuel Gfrörer")
@@ -116,20 +114,6 @@ fullPage mUserCss content page =
 	Html.nav content
 	<>
 	WebDocs.pageToHtml page
-
-{-
-fullPage :: Maybe CMS.URI -> CMS.PageRoutes -> CMS.URI -> WebDocs.Page -> Html ()
-fullPage mUserCss content route page =
-	Html.basePage mUserCss (WebDocs.page_title page) $
-	(Html.nav $
-		Html.calcNavLinks route $
-		map (mapSnd WebDocs.page_title) $
-		M.toList $
-		content
-	)
-	<>
-	WebDocs.pageToHtml page
--}
 
 handleErrors ::
 	MonadIO m =>

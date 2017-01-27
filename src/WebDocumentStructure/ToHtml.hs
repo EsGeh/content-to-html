@@ -10,7 +10,6 @@ import WebDocumentStructure.Types
 
 import Lucid
 import qualified Data.Text as T
---import Data.Monoid
 
 
 pageToHtml :: Page -> Html ()
@@ -18,12 +17,6 @@ pageToHtml x =
 	mconcat $
 	map articleToHtml $
 	page_content x
-	{-
-	textContent (article_title x) $
-	mconcat $
-	map sectionToHtml $
-	article_content x
-	-}
 
 articleToHtml :: Article -> Html ()
 articleToHtml x =

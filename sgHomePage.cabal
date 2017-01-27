@@ -21,8 +21,7 @@ library
     ProjDB,
     ProjDB.ToWebDoc, ProjDB.Types,
     Html,
-    RoutesMonad,
-    CMS,
+    ContentAndRoutes,
     WebDocumentStructure,
     WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
     WebDocumentStructure.JSONOptions

@@ -16,6 +16,7 @@ import qualified Lens.Micro.Platform as Lns
 import qualified Language.Haskell.TH.Syntax as TH
 import Control.Applicative
 
+
 data ProjDB =
 	ProjDB {
 		db_artists :: M.Map ArtistKey Artist,
@@ -93,8 +94,6 @@ data DocumentInfo
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
---newtype URI = URI { fromURI :: T.Text }
-
 data Date
 	= Date
 	deriving( Read, Show, Generic, Eq, Ord )
@@ -104,12 +103,8 @@ flip Lns.makeLensesWith ''ProjDB $
 	Lns.lensRules
 		Lns.& Lns.lensField Lns..~ (\_ _ field -> [ Lns.TopName $ TH.mkName $ TH.nameBase field ++ "_L"])
 
--- $(deriveJSON jsonOptions ''Entry)
--- $(deriveJSON jsonOptions ''Artist)
--- $(deriveJSON jsonOptions ''Project)
 $(deriveJSON jsonOptions ''Person)
 $(deriveJSON jsonOptions ''Date)
--- $(deriveJSON jsonOptions ''ProjectData)
 
 instance FromJSON Entry where
 	parseJSON (Object x) =

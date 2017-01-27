@@ -3,13 +3,12 @@
 {-# LANGUAGE LambdaCase #-}
 module Html where
 
-import CMS
+import ContentAndRoutes
 
 import Lucid
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import Data.Monoid
-import Data.Foldable
 
 
 type Title = T.Text

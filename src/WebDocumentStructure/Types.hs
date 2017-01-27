@@ -65,8 +65,3 @@ $(deriveJSON jsonOptions ''Page)
 $(deriveJSON jsonOptions ''Article)
 $(deriveJSON jsonOptions ''Section)
 $(deriveJSON jsonOptions ''WebContent)
-
-{-
-instance ToJSON WebContent
-instance FromJSON WebContent
--}

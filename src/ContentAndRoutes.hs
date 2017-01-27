@@ -1,4 +1,3 @@
---{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
@@ -7,13 +6,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFoldable, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
-module CMS(
-	module CMS,
+module ContentAndRoutes(
+	module ContentAndRoutes,
 ) where
 
 import WebDocumentStructure.Types
 --import WebDocumentStructure.ToHtml
-import WebDocumentStructure.JSONOptions
 
 import Data.Yaml
 import Control.Monad.IO.Class
@@ -27,8 +25,6 @@ import Data.Maybe
 import qualified Data.Text as T
 import Control.Applicative
 
-import Data.Aeson.TH
---import Data.Aeson
 import GHC.Generics
 
 
@@ -136,30 +132,30 @@ defLoadDirInfo ::
 defLoadDirInfo uriPrefix dir path =
 	case takeExtension path of
 		".mp3" -> return $ Just $
-			( CMS.URI $ "/" </> uriPrefix </> path
-			, FileResource $ defResource { fileRes_type = CMS.ResType $ "audio/mpeg" }
+			( URI $ "/" </> uriPrefix </> path
+			, FileResource $ defResource { fileRes_type = ResType $ "audio/mpeg" }
 			)
 		".pdf" -> return $ Just $
-			( CMS.URI $ "/" </> uriPrefix </> path
-			, FileResource $ defResource { fileRes_type = CMS.ResType $ "application/pdf" }
+			( URI $ "/" </> uriPrefix </> path
+			, FileResource $ defResource { fileRes_type = ResType $ "application/pdf" }
 			)
 		".css" -> return $ Just $
-			( CMS.URI $ "/" </> uriPrefix </> path
-			, FileResource $ defResource { fileRes_type = CMS.ResType $ "style/css" }
+			( URI $ "/" </> uriPrefix </> path
+			, FileResource $ defResource { fileRes_type = ResType $ "style/css" }
 			)
 		".yaml" ->
 			Just <$>
-			( CMS.URI $ "/" </> uriPrefix </> dropExtension path, ) <$>
+			( URI $ "/" </> uriPrefix </> dropExtension path, ) <$>
 			PageResource <$>
 			loadYaml (dir </> path)
 		_ -> return $ Just $
-			( CMS.URI $ "/" </> uriPrefix </> path
+			( URI $ "/" </> uriPrefix </> path
 			, FileResource $ defResource
 			)
 	where
 		defResource =
 			FileResInfo {
-				fileRes_type = CMS.ResType $ "unknown",
+				fileRes_type = ResType $ "unknown",
 				fileRes_file = dir </> path
 			}
 
@@ -201,20 +197,10 @@ instance FromJSON ContentEntry where
 			<|>
 			(fmap Right $ x .: "sub")
 			)
-
-{-
-instance FromJSON (ContentTreeGen ContentEntryInfo) where
-	parseJSON (Object x) =
-		(fmap ContentEntry $ x .: "content_entry")
-		<|>
-		(fmap ContentNode $ x .: "content_node")
--}
+	parseJSON _ = mempty
 
 instance FromJSON URI where
 	parseJSON = (toURI <$>) . parseJSON
 
 instance ToJSON URI where
 	toJSON = toJSON . fromURI
-
--- $(deriveJSON jsonOptions ''(ContentTreeGen ContentEntryInfo))
--- $(deriveJSON jsonOptions ''ContentEntryInfo)

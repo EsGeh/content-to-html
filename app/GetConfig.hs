@@ -25,6 +25,12 @@ parseConfig =
 		)
 		<*> parseContentConfig
 		<*> parseProjDBConfig
+		<*> ( option readUserCss $ value Nothing <>
+			long "user_css" <> metavar "USER_CSS"
+				<> help "user defined css to be included"
+		)
+	where
+		readUserCss = Just <$> str
 
 parseProjDBConfig :: Parser ProjDBConfig
 parseProjDBConfig =
@@ -37,19 +43,24 @@ parseProjDBConfig =
 parseContentConfig :: Parser ContentConfig
 parseContentConfig =
 	ContentConfig <$>
-		( option str $ value "demo/content" <>
-			long "content" <> metavar "WEB_PAGE_CONTENT"
-				<> help "file containing content"
+		( many $ option readOptionParam $
+			long "content" <> metavar "CONTENT_DIR[:URL_PREFIX]"
+				<> help "directory with data to be shared optional followed by a colon and a url prefix"
 		)
-		<*>
-		( option str $ long "css" <>
-			value "demo/css" <>
-			metavar "CSS_DIR"
-				<> help "dir containing css"
-		)
-		<*>
-		( option str $ long "data" <>
-			value "demo/data" <>
-			metavar "DATA_DIR"
-				<> help "dir containing media data"
-		)
+	where
+		readOptionParam :: ReadM DirConfig
+		readOptionParam = fmap `flip` str $ \x ->
+			case splitAtColon x of
+				(path, Nothing) -> defDirConfig path
+				(path, Just uriPrefix) ->
+					DirConfig {
+						dirConfig_path = path,
+						dirConfig_uriPrefix = uriPrefix
+					}
+
+splitAtColon :: String -> (String, Maybe String)
+splitAtColon s =
+	case span (/=':') s of
+		(x,':':y) -> (x, Just y)
+		(x,[]) -> (x, Nothing)
+		_ -> error "splitAtColon error" -- <- should never occur

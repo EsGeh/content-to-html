@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module RoutesMonad(
+	RoutesM,
+	GlobalState(..), initState,
+	{-
 	RoutesM, ActionM,
 	GlobalState(..),
 	initRoutes,
@@ -8,20 +11,27 @@ module RoutesMonad(
 	methodGet, methodPost,
 	methodGetVar,
 	getRoute
+	-}
 ) where
 
-import qualified CMS
-import qualified ProjDB -- as ML
+--import qualified CMS
+--import qualified ProjDB -- as ML
 import Web.Spock.Safe
 
-import System.FilePath.Posix
-import Control.Monad.IO.Class
+--import System.FilePath.Posix
+--import Control.Monad.IO.Class
 
-import Data.String
+--import Data.String
 
---type RoutesM = SpockM () () GlobalState
+type RoutesM = SpockM DBConn Session GlobalState
 
+type DBConn = ()
+type Session = ()
+type GlobalState = ()
 
+initState = ()
+
+{-
 type RoutesM ctx = SpockCtxT (RoutesCtx ctx) (WebStateM () () GlobalState)
 --type RoutesM ctx = SpockM () () (RoutesCtx ctx)
 -- == SpockCtxM () () () (RoutesCtx ctx)
@@ -107,3 +117,4 @@ routeWithCtx route f =
 getRoute :: ActionM ctx String
 getRoute =
 	routesCtx_route <$> getContext
+-}

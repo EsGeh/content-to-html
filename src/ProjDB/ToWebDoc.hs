@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module ProjDB.ToWebDoc(
+	projectsPage,
+	artistsPage,
 	projectToArticle,
 	artistToArticle,
 	-- artistsList, -- needed?
@@ -10,19 +12,30 @@ import ProjDB.Types as ProjDB
 import WebDocumentStructure.Types as WebDocs
 
 import qualified Data.Text as T
---import Data.Maybe
+import Data.Maybe
 
 
-{-
-projectsList :: T.Text -> ProjDB -> Page
-projectsList title db =
-	Page title $
-	map (
-		fromMaybe (error "internal error!")
-		. flip projectToArticle db
-	) $
-	allProjects db
--}
+projectsPage ::
+	T.Text -> (Project -> Bool) -> ProjDB
+	-> WebDocs.Page
+projectsPage title filterProjects db =
+	WebDocs.Page title $
+	catMaybes $
+	(map $ flip projectToArticle db) $
+	filter filterProjects $
+	catMaybes $
+	(map $ flip ProjDB.lookupProject db) $
+	ProjDB.allProjects db
+
+artistsPage ::
+	T.Text -> (ArtistKey -> Bool) -> ProjDB
+	-> WebDocs.Page
+artistsPage title filterFunc db =
+	WebDocs.Page title $
+	catMaybes $
+	(map $ flip artistToArticle db) $
+	filter filterFunc $
+	ProjDB.allArtists db
 
 projectToArticle :: Project -> ProjDB -> Maybe Article
 projectToArticle Project{..} _ =
@@ -45,14 +58,6 @@ projDataToWebContent x =
 		ProjDB.Audio path -> WebDocs.Audio path
 		ProjDB.Document DocumentInfo{..} ->
 			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_path
-
-{-
-artistsList :: T.Text -> ProjDB -> Page
-artistsList title db =
-	Page title $
-	map (fromMaybe (error "internal error!") . flip artistToArticle db) $
-	allArtists db
--}
 
 artistToArticle :: ArtistKey -> ProjDB -> Maybe Article
 artistToArticle key db =

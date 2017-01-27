@@ -9,7 +9,6 @@ module CMS(
 
 import WebDocumentStructure.Types
 --import WebDocumentStructure.ToHtml
-import Utils( mapFst )
 
 import Data.Yaml
 import Control.Monad.IO.Class
@@ -23,34 +22,63 @@ import Data.Maybe
 import qualified Data.Text as T
 
 
-type Routes = M.Map FilePath Resource
-type PageRoutes = M.Map FilePath Page
-type FileRoutes = M.Map FilePath FileResInfo
+{-
+data FullSite
+	= FullSite {
+		fullSite_content :: ContentWithPos,
+		fullSite_routes :: Routes
+	}
+	deriving( Show )
+
+type ContentWithPos = (ContentTree, URI)
+
+data ContentTree
+	= ContentEntry ContentEntryInfo
+	| ContentNode ContentTree
+	deriving( Show )
+
+data ContentEntryInfo
+	= ContentEntryInfo {
+		content_caption :: T.Text,
+		content_uri :: URI
+	}
+	deriving( Show )
+-}
+
+type Routes = M.Map URI Resource
+type PageRoutes = M.Map URI Page
+type FileRoutes = M.Map URI FileResInfo
 
 -----------------------------------
 -- create a Routes object:
 -----------------------------------
+
+toURI :: FilePath -> URI
+toURI =
+	URI . normalizeURI
+	where
+		normalizeURI = ("/" </>)
 
 combineRoutes ::
 	[Routes] -> Routes
 combineRoutes =
 	M.unions
 
-addRoute :: FilePath -> Resource -> Routes -> Routes
-addRoute uri res =
-	M.insert uri res
+addRoute :: URI -> Resource -> Routes -> Routes
+addRoute =
+	M.insert
 
 loadFilesInDir ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
 	(FilePath -> m (Maybe (URI, Resource)))
-	-> FilePath -> m (M.Map FilePath Resource)
+	-> FilePath -> m (M.Map URI Resource)
 loadFilesInDir calcRes dirPath =
 	calc =<< (ls dirPath :: m [FilePath])
 	where
 		calc :: [FilePath] -> m Routes
 		calc paths = 
-			(M.fromList . map (mapFst fromURI) . catMaybes) <$>
+			(M.fromList . catMaybes) <$>
 			mapM calcRes paths
 
 -----------------------------------
@@ -66,11 +94,11 @@ routes_files =
 	M.mapMaybe (\r -> case r of { FileResource info -> Just info; _ -> Nothing}) 
 
 findPage ::
-	(MonadError String m) => String -> Routes -> m Resource
+	(MonadError String m) => URI -> Routes -> m Resource
 findPage key routes =
 	let mRes = M.lookup key routes in
 		maybe
-			(throwError $ concat ["could not find \"", key, "\"!"{-, " possible: ", show $ M.keys content-}])
+			(throwError $ concat ["could not find \"", fromURI key, "\"!"{-, " possible: ", show $ M.keys content-}])
 			return
 			mRes
 
@@ -91,23 +119,30 @@ newtype URI = URI { fromURI :: FilePath }
 newtype ResType = ResType { fromResType :: T.Text }
 	deriving( Eq, Ord, Show, Read )
 
-defLoadDirInfo :: FilePath -> FilePath -> FilePath -> Maybe (URI, Resource)
+defLoadDirInfo ::
+	(MonadIO m, MonadError String m) =>
+	FilePath -> FilePath -> FilePath -> m (Maybe (URI, Resource))
 defLoadDirInfo uriPrefix dir path =
 	case takeExtension path of
-		".mp3" -> Just $
-			( CMS.URI $ uriPrefix </> path
+		".mp3" -> return $ Just $
+			( CMS.URI $ "/" </> uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = CMS.ResType $ "audio/mpeg" }
 			)
-		".pdf" -> Just $
-			( CMS.URI $ uriPrefix </> path
+		".pdf" -> return $ Just $
+			( CMS.URI $ "/" </> uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = CMS.ResType $ "application/pdf" }
 			)
-		".css" -> Just $
-			( CMS.URI $ uriPrefix </> path
+		".css" -> return $ Just $
+			( CMS.URI $ "/" </> uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = CMS.ResType $ "style/css" }
 			)
-		_ -> Just $
-			( CMS.URI $ uriPrefix </> path
+		".yaml" ->
+			Just <$>
+			( CMS.URI $ "/" </> uriPrefix </> dropExtension path, ) <$>
+			PageResource <$>
+			loadYaml (dir </> path)
+		_ -> return $ Just $
+			( CMS.URI $ "/" </> uriPrefix </> path
 			, FileResource $ defResource
 			)
 	where

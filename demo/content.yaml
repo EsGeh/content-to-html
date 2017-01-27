@@ -1,0 +1,12 @@
+## site hierarchy:
+
+- caption: introduction
+  uri: content/0_infos
+- caption: music list
+  uri: content/1_music
+- caption: subHeader
+  sub:
+  - caption: "subtopic 1"
+    uri: content/2_1_subTopic
+  - caption: "subtopic 2"
+    uri: content/2_2_subTopic

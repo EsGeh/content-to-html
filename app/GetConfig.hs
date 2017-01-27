@@ -23,11 +23,15 @@ parseConfig =
 			long "port" <> short 'p' <> metavar "PORT"
 				<> help "listen on PORT"
 		)
-		<*> parseContentConfig
+		<*> parseSharedDirsConfig
 		<*> parseProjDBConfig
 		<*> ( option readUserCss $ value Nothing <>
 			long "user_css" <> metavar "USER_CSS"
 				<> help "user defined css to be included"
+		)
+		<*> (option str $
+			long "content" <> metavar "CONTENT_TREE"
+			<> help "file defining the website hierarchy"
 		)
 	where
 		readUserCss = Just <$> str
@@ -40,13 +44,11 @@ parseProjDBConfig =
 				<> help "file containing projects data"
 		)
 
-parseContentConfig :: Parser ContentConfig
-parseContentConfig =
-	ContentConfig <$>
-		( many $ option readOptionParam $
-			long "content" <> metavar "CONTENT_DIR[:URL_PREFIX]"
+parseSharedDirsConfig :: Parser [DirConfig]
+parseSharedDirsConfig =
+		many $ option readOptionParam $
+			long "data" <> metavar "DATA_DIR[:URL_PREFIX]"
 				<> help "directory with data to be shared optional followed by a colon and a url prefix"
-		)
 	where
 		readOptionParam :: ReadM DirConfig
 		readOptionParam = fmap `flip` str $ \x ->

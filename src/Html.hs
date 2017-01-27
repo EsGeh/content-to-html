@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module Html where
 
 import CMS
@@ -7,6 +9,7 @@ import Lucid
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import Data.Monoid
+import Data.Foldable
 
 
 type Title = T.Text
@@ -27,8 +30,22 @@ basePage mUserCss title content =
 		body_ $
 			content
 
+nav :: Content -> Html ()
+nav content =
+	nav_ $ ul_ [] $ mconcat $
+		map `flip` content $ \e ->
+			li_ $
+			case content_subEntries e of
+				Left uri ->
+					link uri (content_caption e)
+				Right sub ->
+					toHtml (content_caption e) <> nav sub
 
+link :: URI -> T.Text -> Html ()
+link route name =
+	a_ [href_ $ T.pack (fromURI route)] (toHtml name)
 
+{-
 calcNavLinks :: URI -> [(URI, T.Text)] -> Zipper (URI, T.Text)
 calcNavLinks activeRoute =
 	(\(before, active:after) ->  (before, active, after)) .
@@ -48,3 +65,4 @@ nav (before, active, after) =
 		link :: (URI, T.Text) -> Html ()
 		link (route, name) =
 			a_ [href_ $ T.pack (fromURI route)] (toHtml name)
+-}

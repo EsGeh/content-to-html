@@ -6,7 +6,6 @@
 module Lib(
 	Config(..),
 	ProjDBConfig, mlConfig,
-	ContentConfig(..),
 	DirConfig(..), defDirConfig,
 	runHomepage
 ) where
@@ -31,17 +30,20 @@ type ProjDBConfig = ProjDB.Config
 data Config
 	= Config {
 		config_port :: Int,
-		config_content :: ContentConfig,
+		config_sharedDirs :: [DirConfig],
 		config_projDB :: ProjDB.Config,
-		config_userCSS :: Maybe FilePath
+		config_userCSS :: Maybe FilePath,
+		config_content :: FilePath
 	}
 	deriving (Show, Read)
 
-data ContentConfig
-	= ContentConfig {
-		contentDirs :: [DirConfig]
+{-
+newtype SharedDirsConfig
+	= SharedDirsConfig {
+		sharedDirs :: [DirConfig]
 	}
 	deriving( Show, Read )
+-}
 
 data DirConfig
 	= DirConfig {
@@ -54,19 +56,16 @@ defDirConfig :: FilePath -> DirConfig
 defDirConfig path = DirConfig path path
 
 runHomepage :: Config -> IO ()
-runHomepage conf =
-	let
-		port = config_port conf
-		contentCfg = config_content conf
-	in
-		handleErrors' $
-		do
-			db <- ProjDB.loadState (config_projDB conf) -- <|> ProjDB.newState
-			content <-
-				(loadContent db contentCfg `catchError` \e -> throwError ("error while loading content: " ++ e))
-			liftIO $ runSpock port $
-					spock (spockCfg $ initState) $
-					spockRoutes content (CMS.toURI <$> config_userCSS conf)
+runHomepage Config{..} =
+	handleErrors' $
+	do
+		db <- ProjDB.loadState config_projDB
+		sharedData <-
+			(loadSharedData db config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
+		contentTree <- CMS.loadContent config_content
+		liftIO $ runSpock config_port $
+				spock (spockCfg $ initState) $
+				spockRoutes sharedData contentTree (CMS.toURI <$> config_userCSS)
 	where
 		spockCfg initState' =
 			defaultSpockCfg () PCNoDatabase initState'
@@ -74,24 +73,24 @@ runHomepage conf =
 			runExceptT x
 			>>= either putStrLn return
 
-spockRoutes :: CMS.Routes -> Maybe CMS.URI -> RoutesM ()
-spockRoutes routes mUserCss =
+spockRoutes :: CMS.Routes -> CMS.Content -> Maybe CMS.URI -> RoutesM ()
+spockRoutes routes content mUserCss =
 	hookAny GET $ (. calcRouteKey) $ \path ->
 		handleErrors $
 		do
 			resource <- CMS.findPage path routes
 			case resource of
 				CMS.PageResource page ->
-					(lift . html . Html.renderPage . fullPage mUserCss (CMS.routes_pages routes) path) page
+					(lift . html . Html.renderPage . fullPage mUserCss content) page
 				CMS.FileResource CMS.FileResInfo{..} ->
 					lift $ file (CMS.fromResType $ fileRes_type) $ fileRes_file
 	where
 		calcRouteKey r = CMS.toURI (T.unpack $ T.intercalate "/" r)
 
-loadContent ::
+loadSharedData ::
 	(MonadIO m, MonadError String m) =>
-	ProjDB.ProjDB -> ContentConfig -> m CMS.Routes
-loadContent db ContentConfig{..} =
+	ProjDB.ProjDB -> [DirConfig] -> m CMS.Routes
+loadSharedData db sharedDirs =
 	((\x -> do{ liftIO $ print x; return x} ) =<<) $
 	fmap (
 		(CMS.addRoute (CMS.toURI "/content/artists") $ CMS.PageResource $
@@ -104,13 +103,21 @@ loadContent db ContentConfig{..} =
 		)
 	) $
 	fmap CMS.combineRoutes $
-	forM contentDirs $ \DirConfig{..} ->
+	forM sharedDirs $ \DirConfig{..} ->
 		CMS.loadFilesInDir `flip` dirConfig_path $
 		CMS.defLoadDirInfo dirConfig_uriPrefix dirConfig_path
 
 mlConfig :: FilePath -> ProjDBConfig
 mlConfig = ProjDB.Config
 
+fullPage :: Maybe CMS.URI -> CMS.Content -> WebDocs.Page -> Html ()
+fullPage mUserCss content page =
+	Html.basePage mUserCss (WebDocs.page_title page) $
+	Html.nav content
+	<>
+	WebDocs.pageToHtml page
+
+{-
 fullPage :: Maybe CMS.URI -> CMS.PageRoutes -> CMS.URI -> WebDocs.Page -> Html ()
 fullPage mUserCss content route page =
 	Html.basePage mUserCss (WebDocs.page_title page) $
@@ -122,6 +129,7 @@ fullPage mUserCss content route page =
 	)
 	<>
 	WebDocs.pageToHtml page
+-}
 
 handleErrors ::
 	MonadIO m =>

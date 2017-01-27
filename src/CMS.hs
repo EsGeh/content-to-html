@@ -3,12 +3,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveFoldable, DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 module CMS(
 	module CMS,
 ) where
 
 import WebDocumentStructure.Types
 --import WebDocumentStructure.ToHtml
+import WebDocumentStructure.JSONOptions
 
 import Data.Yaml
 import Control.Monad.IO.Class
@@ -20,34 +25,57 @@ import System.FilePath.Posix
 import Data.List
 import Data.Maybe
 import qualified Data.Text as T
+import Control.Applicative
+
+import Data.Aeson.TH
+--import Data.Aeson
+import GHC.Generics
 
 
-{-
-data FullSite
-	= FullSite {
-		fullSite_content :: ContentWithPos,
-		fullSite_routes :: Routes
-	}
-	deriving( Show )
+-----------------------------------
+-- types
+-----------------------------------
 
-type ContentWithPos = (ContentTree, URI)
 
-data ContentTree
-	= ContentEntry ContentEntryInfo
-	| ContentNode ContentTree
-	deriving( Show )
+--type ContentWithPos = (Content, URI)
 
-data ContentEntryInfo
-	= ContentEntryInfo {
-		content_caption :: T.Text,
-		content_uri :: URI
-	}
-	deriving( Show )
+{- |this represents a hierarchy of displayable content.
+	It might be used as a basis for a site navigation (menu)
 -}
+type Content = [ContentEntry]
+
+data ContentEntry
+	= ContentEntry {
+		content_caption :: T.Text,
+		content_subEntries :: Either URI Content
+	}
+	deriving( Show, Read, Eq, Ord, Generic )
+
+loadContent :: 
+	(MonadIO m, MonadError String m) =>
+	FilePath -> m Content
+loadContent = loadYaml
 
 type Routes = M.Map URI Resource
 type PageRoutes = M.Map URI Page
 type FileRoutes = M.Map URI FileResInfo
+
+data Resource
+	= PageResource Page
+	| FileResource FileResInfo
+	deriving( Show, Read )
+
+data FileResInfo
+	= FileResInfo {
+		fileRes_type :: ResType,
+		fileRes_file :: FilePath
+	}
+	deriving( Show, Read )
+
+newtype URI = URI { fromURI :: FilePath }
+	deriving( Eq, Ord, Show, Read, Generic )
+newtype ResType = ResType { fromResType :: T.Text }
+	deriving( Eq, Ord, Show, Read )
 
 -----------------------------------
 -- create a Routes object:
@@ -101,23 +129,6 @@ findPage key routes =
 			(throwError $ concat ["could not find \"", fromURI key, "\"!"{-, " possible: ", show $ M.keys content-}])
 			return
 			mRes
-
-data Resource
-	= PageResource Page
-	| FileResource FileResInfo
-	deriving( Show, Read )
-
-data FileResInfo
-	= FileResInfo {
-		fileRes_type :: ResType,
-		fileRes_file :: FilePath
-	}
-	deriving( Show, Read )
-
-newtype URI = URI { fromURI :: FilePath }
-	deriving( Eq, Ord, Show, Read )
-newtype ResType = ResType { fromResType :: T.Text }
-	deriving( Eq, Ord, Show, Read )
 
 defLoadDirInfo ::
 	(MonadIO m, MonadError String m) =>
@@ -181,3 +192,29 @@ ls dir =
 			(throwError . show)
 			return
 			mRet
+
+instance FromJSON ContentEntry where
+	parseJSON (Object x) =
+		ContentEntry <$>
+			x .: "caption" <*> (
+			(fmap Left $ x .: "uri")
+			<|>
+			(fmap Right $ x .: "sub")
+			)
+
+{-
+instance FromJSON (ContentTreeGen ContentEntryInfo) where
+	parseJSON (Object x) =
+		(fmap ContentEntry $ x .: "content_entry")
+		<|>
+		(fmap ContentNode $ x .: "content_node")
+-}
+
+instance FromJSON URI where
+	parseJSON = (toURI <$>) . parseJSON
+
+instance ToJSON URI where
+	toJSON = toJSON . fromURI
+
+-- $(deriveJSON jsonOptions ''(ContentTreeGen ContentEntryInfo))
+-- $(deriveJSON jsonOptions ''ContentEntryInfo)

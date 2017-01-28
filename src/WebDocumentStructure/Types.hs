@@ -12,6 +12,27 @@ import Data.Aeson
 import GHC.Generics
 
 
+data PageWithNav
+	= PageWithNav {
+		pageWithNav_nav :: Nav,
+		pageWithNav_page :: Page
+	}
+	deriving( Show, Read, Eq, Ord, Generic )
+
+type Nav = [NavEntry]
+
+data NavEntry
+	= NavEntry Link
+	| NavCategory Title [NavEntry]
+	deriving( Show, Read, Eq, Ord, Generic )
+
+data Link
+	= Link {
+		link_caption :: Title,
+		link_dest :: T.Text
+	}
+	deriving( Show, Read, Eq, Ord, Generic )
+
 data Page
 	= Page {
 		page_title :: Title,

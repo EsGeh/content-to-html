@@ -19,10 +19,10 @@ library
   other-modules:
     Utils,
     Plugins,
-    ProjDB,
-    ProjDB.ToWebDoc, ProjDB.Types,
+    Plugins.ProjDB,
+    Plugins.ProjDB.ToWebDoc, Plugins.ProjDB.Types,
+    Plugins.HierarchicWebsite,
     Html,
-    Routes,
     WebDocumentStructure,
     WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
     WebDocumentStructure.JSONOptions

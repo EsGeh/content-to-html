@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-module ProjDB.Types where
+module Plugins.ProjDB.Types where
 
 import WebDocumentStructure.JSONOptions
 

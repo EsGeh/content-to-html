@@ -28,9 +28,10 @@ parseConfig =
 			long "port" <> short 'p' <> metavar "PORT"
 				<> help "listen on PORT"
 		)
-		<*> parseSharedDirsConfig
+		-- <*> parseSharedDirsConfig
 		<*> parsePluginsCfg
 		-- <*> parseProjDBConfig
+		{-
 		<*> ( option readUserCss $ value Nothing <>
 			long "user_css" <> metavar "USER_CSS"
 				<> help "user defined css to be included"
@@ -41,6 +42,7 @@ parseConfig =
 		)
 	where
 		readUserCss = Just <$> str
+	-}
 
 parsePluginsCfg :: Parser PluginsConfig
 parsePluginsCfg =
@@ -77,6 +79,7 @@ parseProjDBConfig =
 		)
 -}
 
+{-
 parseSharedDirsConfig :: Parser [DirConfig]
 parseSharedDirsConfig =
 		many $ option readOptionParam $
@@ -92,6 +95,7 @@ parseSharedDirsConfig =
 						dirConfig_path = path,
 						dirConfig_uriPrefix = uriPrefix
 					}
+-}
 
 splitAtColon2 :: String -> (String, Maybe String, Maybe String)
 splitAtColon2 s =

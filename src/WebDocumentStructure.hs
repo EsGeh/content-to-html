@@ -41,7 +41,8 @@ loadContent ::
 loadContent = loadYaml
 
 data Resource
-	= PageResource Page
+	= FullPageResource PageWithNav
+	| PageResource Page
 	| FileResource FileResInfo
 	deriving( Show, Read )
 

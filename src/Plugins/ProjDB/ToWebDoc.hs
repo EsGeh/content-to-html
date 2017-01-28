@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module ProjDB.ToWebDoc(
+module Plugins.ProjDB.ToWebDoc(
 	projectsPage,
 	artistsPage,
 	projectToArticle,
@@ -8,7 +8,7 @@ module ProjDB.ToWebDoc(
 	-- artistsList, -- needed?
 ) where
 
-import ProjDB.Types as ProjDB
+import Plugins.ProjDB.Types as ProjDB
 import WebDocumentStructure.Types as WebDocs
 
 import qualified Data.Text as T

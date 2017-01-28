@@ -1,0 +1,9 @@
+##
+#
+#
+
+config_sharedDirs:
+  - dirConfig_path: demo/content
+    dirConfig_uriPrefix: /
+config_userCSS: "css/style.css" # uri of the user css
+config_content: "demo/content.yaml" # file defining site hierarchy

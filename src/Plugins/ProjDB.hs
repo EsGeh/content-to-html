@@ -2,13 +2,13 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-module ProjDB(
+module Plugins.ProjDB(
 	load,
 	ProjDB(..),
 ) where
 
-import ProjDB.Types
-import qualified ProjDB.ToWebDoc as ToWebDoc
+import Plugins.ProjDB.Types
+import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
 import WebDocumentStructure
 import qualified Plugins
 

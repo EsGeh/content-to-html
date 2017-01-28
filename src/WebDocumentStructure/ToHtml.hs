@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module WebDocumentStructure.ToHtml(
 	module WebDocumentStructure.ToHtml,
 	Html
@@ -10,7 +11,25 @@ import WebDocumentStructure.Types
 
 import Lucid
 import qualified Data.Text as T
+import Data.Monoid
 
+
+pageWithNavToHtml :: PageWithNav -> Html ()
+pageWithNavToHtml PageWithNav{..} =
+	navToHtml pageWithNav_nav
+	<> pageToHtml pageWithNav_page
+
+navToHtml :: Nav -> Html ()
+navToHtml nav =
+	ul_ [] $ mconcat $ map `flip` nav $ li_ . \case
+		NavEntry link -> linkToHtml link
+		NavCategory title subEntries ->
+			toHtml title <> navToHtml subEntries
+	--mconcat $ map linkToHtml nav
+
+linkToHtml :: Link -> Html ()
+linkToHtml Link{..} =
+	a_ [href_ link_dest] $ toHtml $ T.unpack link_caption
 
 pageToHtml :: Page -> Html ()
 pageToHtml x =

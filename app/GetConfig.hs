@@ -1,9 +1,14 @@
+{-# LANGUAGE TupleSections #-}
 module GetConfig(
 	getConfig
 ) where
 
 import Lib
+
 import Options.Applicative
+import qualified Data.Map as M
+import Control.Monad
+--import qualified Data.Text as T
 
 
 getConfig :: IO Config
@@ -24,7 +29,8 @@ parseConfig =
 				<> help "listen on PORT"
 		)
 		<*> parseSharedDirsConfig
-		<*> parseProjDBConfig
+		<*> parsePluginsCfg
+		-- <*> parseProjDBConfig
 		<*> ( option readUserCss $ value Nothing <>
 			long "user_css" <> metavar "USER_CSS"
 				<> help "user defined css to be included"
@@ -36,6 +42,32 @@ parseConfig =
 	where
 		readUserCss = Just <$> str
 
+parsePluginsCfg :: Parser PluginsConfig
+parsePluginsCfg =
+	M.fromList <$>
+	many (option readParam $ long "plugin")
+	where
+		readParam :: ReadM (String, PluginConfig)
+		readParam = str >>= \x ->
+			case splitAtColon2 x of
+				(plugin,mUri, mConfigFile) ->
+					do
+						when (not $ plugin `elem` pluginNames) $ readerError $ "unknown plugin: " ++ x
+						case (mUri, mConfigFile) of
+							(Just uri, Just configFile) ->
+								return $ (plugin,) $ PluginConfig {
+									plugin_uri = toURI uri,
+									plugin_configFile = configFile
+								}
+							_ -> readerError "error parsin plugin parameters"
+
+{-
+	many $
+		PluginConfig <$>
+			(option str $
+-}
+
+{-
 parseProjDBConfig :: Parser ProjDBConfig
 parseProjDBConfig =
 	mlConfig <$>
@@ -43,6 +75,7 @@ parseProjDBConfig =
 			long "projDB" <> metavar "PROJ_DB_FILE"
 				<> help "file containing projects data"
 		)
+-}
 
 parseSharedDirsConfig :: Parser [DirConfig]
 parseSharedDirsConfig =
@@ -59,6 +92,14 @@ parseSharedDirsConfig =
 						dirConfig_path = path,
 						dirConfig_uriPrefix = uriPrefix
 					}
+
+splitAtColon2 :: String -> (String, Maybe String, Maybe String)
+splitAtColon2 s =
+	let
+		(x,y') = splitAtColon s
+	in
+		maybe (x,y',Nothing) (\(y,z) -> (x,Just y,z)) $
+			splitAtColon <$> y'
 
 splitAtColon :: String -> (String, Maybe String)
 splitAtColon s =

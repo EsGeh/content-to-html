@@ -3,8 +3,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DeriveFoldable, DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 module ContentAndRoutes(
 	module ContentAndRoutes,
@@ -32,10 +30,9 @@ import GHC.Generics
 -- types
 -----------------------------------
 
-
 --type ContentWithPos = (Content, URI)
 
-{- |this represents a hierarchy of displayable content.
+{- |this type represents a hierarchy of displayable content.
 	It might be used as a basis for a site navigation (menu)
 -}
 type Content = [ContentEntry]
@@ -73,15 +70,15 @@ newtype URI = URI { fromURI :: FilePath }
 newtype ResType = ResType { fromResType :: T.Text }
 	deriving( Eq, Ord, Show, Read )
 
------------------------------------
--- create a Routes object:
------------------------------------
-
 toURI :: FilePath -> URI
 toURI =
 	URI . normalizeURI
 	where
 		normalizeURI = ("/" </>)
+
+-----------------------------------
+-- create a Routes object:
+-----------------------------------
 
 combineRoutes ::
 	[Routes] -> Routes

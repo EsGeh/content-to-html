@@ -3,7 +3,7 @@
 - caption: introduction
   uri: content/0_infos
 - caption: music list
-  uri: content/1_music
+  uri: projDB/artists
 - caption: subHeader
   sub:
   - caption: "subtopic 1"

@@ -22,7 +22,7 @@ library
     ProjDB,
     ProjDB.ToWebDoc, ProjDB.Types,
     Html,
-    ContentAndRoutes,
+    Routes,
     WebDocumentStructure,
     WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
     WebDocumentStructure.JSONOptions

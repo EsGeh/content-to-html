@@ -10,19 +10,17 @@ module Lib(
 	--ProjDBConfig, mlConfig,
 	DirConfig(..), defDirConfig,
 	runHomepage,
-	CMS.toURI,
+	URI, toURI, fromURI,
 	Plugins.PluginName
 ) where
 
 import qualified Plugins
-import qualified ContentAndRoutes as CMS
-import qualified WebDocumentStructure as WebDocs
+import qualified Routes
+import WebDocumentStructure
 import qualified ProjDB
---import qualified ProjDB.ToWebDoc -- as .Html
 import qualified Html
 
 import Web.Spock.Safe
-import Lucid
 import Data.Monoid
 import qualified Data.Map as M
 import Control.Monad.Except
@@ -55,7 +53,7 @@ type PluginsConfig =
 
 data PluginConfig = 
 	PluginConfig {
-		plugin_uri :: CMS.URI,
+		plugin_uri :: URI,
 		plugin_configFile :: FilePath
 	}
 	deriving (Show, Read)
@@ -90,10 +88,10 @@ runHomepage Config{..} =
 		pluginsState <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
 		sharedData <-
 			(loadSharedData config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
-		contentTree <- CMS.loadContent config_content
+		contentTree <- loadContent config_content
 		liftIO $ runSpock config_port $
 				spock (spockCfg $ pluginsState) $
-				spockRoutes sharedData contentTree (CMS.toURI <$> config_userCSS)
+				spockRoutes sharedData contentTree (toURI <$> config_userCSS)
 	where
 		spockCfg initState' =
 			defaultSpockCfg () PCNoDatabase initState'
@@ -101,7 +99,7 @@ runHomepage Config{..} =
 			runExceptT x
 			>>= either putStrLn return
 
-spockRoutes :: CMS.Routes -> CMS.Content -> Maybe CMS.URI -> RoutesM ()
+spockRoutes :: Routes.Routes -> Content -> Maybe URI -> RoutesM ()
 spockRoutes routes content mUserCss =
 	getState >>= \pluginsState ->
 	hookAny GET $ \uriParts ->
@@ -111,7 +109,7 @@ spockRoutes routes content mUserCss =
 				case uriParts of
 					(uriPref:req) ->
 						do
-							(page, _) <- Plugins.routeToPlugins pluginsState (CMS.toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
+							(page, _) <- Plugins.routeToPlugins pluginsState (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
 							sendResource page
 					_ -> return ()
 			)
@@ -119,34 +117,34 @@ spockRoutes routes content mUserCss =
 			-- otherwise:
 			(do
 				let resKey = calcRouteKey uriParts
-				resource <- CMS.findPage resKey routes
+				resource <- Routes.findPage resKey routes
 				sendResource resource
 			)
 	where
-		calcRouteKey r = CMS.toURI (T.unpack $ T.intercalate "/" r)
+		calcRouteKey r = toURI (T.unpack $ T.intercalate "/" r)
 		sendResource resource =
 			case resource of
-				CMS.PageResource page ->
+				PageResource page ->
 					(lift . html . Html.renderPage . fullPage mUserCss content) page
-				CMS.FileResource CMS.FileResInfo{..} ->
-					lift $ file (CMS.fromResType $ fileRes_type) $ fileRes_file
+				FileResource FileResInfo{..} ->
+					lift $ file (fromResType $ fileRes_type) $ fileRes_file
 
 loadSharedData ::
 	(MonadIO m, MonadError String m) =>
-	[DirConfig] -> m CMS.Routes
+	[DirConfig] -> m Routes.Routes
 loadSharedData sharedDirs =
 	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
-	fmap CMS.combineRoutes $
+	fmap Routes.combineRoutes $
 	forM sharedDirs $ \DirConfig{..} ->
-		CMS.loadFilesInDir `flip` dirConfig_path $
-		CMS.defLoadDirInfo dirConfig_uriPrefix dirConfig_path
+		Routes.loadFilesInDir `flip` dirConfig_path $
+		Routes.defLoadDirInfo dirConfig_uriPrefix dirConfig_path
 
-fullPage :: Maybe CMS.URI -> CMS.Content -> WebDocs.Page -> Html ()
+fullPage :: Maybe URI -> Content -> Page -> Html ()
 fullPage mUserCss content page =
-	Html.basePage mUserCss (WebDocs.page_title page) $
+	Html.basePage mUserCss (page_title page) $
 	Html.nav content
 	<>
-	WebDocs.pageToHtml page
+	pageToHtml page
 
 handleErrors ::
 	MonadIO m =>

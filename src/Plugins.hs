@@ -5,14 +5,14 @@
 {-# LANGUAGE TupleSections #-}
 module Plugins where
 
-
-import ContentAndRoutes
+import WebDocumentStructure
 
 import Control.Monad.IO.Class
 import Control.Monad.Except
 import qualified Control.Monad.State as St
 import qualified Data.Text as T
 import qualified Data.Map as M
+
 
 data Plugin state
 	= Plugin {

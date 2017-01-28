@@ -2,16 +2,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-module ContentAndRoutes(
-	module ContentAndRoutes,
-) where
+module Routes where
 
-import WebDocumentStructure.Types
---import WebDocumentStructure.ToHtml
+import WebDocumentStructure
 
-import Data.Yaml
 import Control.Monad.IO.Class
 import Control.Monad.Except
 import qualified Data.Map as M
@@ -20,61 +15,15 @@ import System.IO.Error
 import System.FilePath.Posix
 import Data.List
 import Data.Maybe
-import qualified Data.Text as T
-import Control.Applicative
-
-import GHC.Generics
 
 
 -----------------------------------
 -- types
 -----------------------------------
 
---type ContentWithPos = (Content, URI)
-
-{- |this type represents a hierarchy of displayable content.
-	It might be used as a basis for a site navigation (menu)
--}
-type Content = [ContentEntry]
-
-data ContentEntry
-	= ContentEntry {
-		content_caption :: T.Text,
-		content_subEntries :: Either URI Content
-	}
-	deriving( Show, Read, Eq, Ord, Generic )
-
-loadContent :: 
-	(MonadIO m, MonadError String m) =>
-	FilePath -> m Content
-loadContent = loadYaml
-
 type Routes = M.Map URI Resource
 type PageRoutes = M.Map URI Page
 type FileRoutes = M.Map URI FileResInfo
-
-data Resource
-	= PageResource Page
-	| FileResource FileResInfo
-	deriving( Show, Read )
-
-data FileResInfo
-	= FileResInfo {
-		fileRes_type :: ResType,
-		fileRes_file :: FilePath
-	}
-	deriving( Show, Read )
-
-newtype URI = URI { fromURI :: FilePath }
-	deriving( Eq, Ord, Show, Read, Generic )
-newtype ResType = ResType { fromResType :: T.Text }
-	deriving( Eq, Ord, Show, Read )
-
-toURI :: FilePath -> URI
-toURI =
-	URI . normalizeURI
-	where
-		normalizeURI = ("/" </>)
 
 -----------------------------------
 -- create a Routes object:
@@ -93,7 +42,7 @@ loadFilesInDir ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
 	(FilePath -> m (Maybe (URI, Resource)))
-	-> FilePath -> m (M.Map URI Resource)
+	-> FilePath -> m Routes
 loadFilesInDir calcRes dirPath =
 	calc =<< (ls dirPath :: m [FilePath])
 	where
@@ -156,19 +105,6 @@ defLoadDirInfo uriPrefix dir path =
 				fileRes_file = dir </> path
 			}
 
-loadYaml ::
-	(FromJSON res, MonadIO m, MonadError String m) =>
-	FilePath -> m res
-loadYaml filename =
-	do
-		ma <- liftIO $ 
-			either (Left . show) Right
-			<$> decodeFileEither filename
-		either
-			(\e -> throwError $ concat ["error while loading \"", filename,"\": ", e])
-			return
-			ma
-
 -----------------------------------
 -- utils:
 -----------------------------------
@@ -185,19 +121,3 @@ ls dir =
 			(throwError . show)
 			return
 			mRet
-
-instance FromJSON ContentEntry where
-	parseJSON (Object x) =
-		ContentEntry <$>
-			x .: "caption" <*> (
-			(fmap Left $ x .: "uri")
-			<|>
-			(fmap Right $ x .: "sub")
-			)
-	parseJSON _ = mempty
-
-instance FromJSON URI where
-	parseJSON = (toURI <$>) . parseJSON
-
-instance ToJSON URI where
-	toJSON = toJSON . fromURI

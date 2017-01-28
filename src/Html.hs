@@ -2,15 +2,13 @@
 {-# LANGUAGE LambdaCase #-}
 module Html where
 
-import ContentAndRoutes
+import WebDocumentStructure
 
 import Lucid
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import Data.Monoid
 
-
-type Title = T.Text
 
 renderPage :: Html () -> T.Text
 renderPage =

@@ -9,14 +9,12 @@ module ProjDB(
 
 import ProjDB.Types
 import qualified ProjDB.ToWebDoc as ToWebDoc
-import ContentAndRoutes
+import WebDocumentStructure
 import qualified Plugins
 
 import Data.Yaml
---import qualified Data.Map as M
 import Control.Monad.State
 import Control.Monad.Except
---import Control.Applicative
 
 
 plugin :: Plugins.Plugin ProjDB

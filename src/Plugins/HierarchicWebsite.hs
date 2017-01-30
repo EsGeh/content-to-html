@@ -10,9 +10,10 @@ module Plugins.HierarchicWebsite where
 
 import WebDocumentStructure
 import Plugins
+import Types
 
-import qualified Data.Text as T
 import Data.Yaml
+import Data.Aeson
 import GHC.Generics
 import Control.Monad.IO.Class
 import Control.Monad.Except
@@ -23,6 +24,7 @@ import System.IO.Error
 import System.FilePath.Posix
 import Data.List
 import Data.Maybe
+import Control.Applicative
 
 data RoutesState = 
 	RoutesState {
@@ -54,8 +56,10 @@ load configFile =
 		sharedData <-
 			(loadSharedData config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
 		contentTree <- loadContent config_content
+		{-
 		liftIO $ putStrLn $ "content tree:" ++ show contentTree
 		liftIO $ putStrLn $ "shared resources:" ++ show sharedData
+		-}
 		return $
 			(plugin,) $
 			RoutesState {
@@ -66,21 +70,36 @@ load configFile =
 
 answer_req ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.Request -> StateT RoutesState m Resource
+	Request -> Plugins.RunReqT RoutesState m Resource
 answer_req (resKey,_) =
 	get >>= \RoutesState{..} ->
 		findPage resKey routes >>= \case
 			PageResource page ->
-				return $ FullPageResource $ PageWithNav (calcNav content) page
-			otherRes -> return $ otherRes
-	where
+				fmap (FullPageResource . (PageWithNav (calcNav content) `flip` (HeaderInfo userCss))) $
+				page_mapToContentM `flip` page $ mapM $
+				either `flip` return $ \(uri',params) ->
+				let (pluginKey, uri) = parseReq uri' in
+				--((liftIO . putStrLn $ show $ (pluginKey, uri, params)) >>) $
+				lift $ Plugins.routeToPlugins pluginKey (uri, params) >>= \r ->
+					case r of
+						PageResource Page{ page_content=(a:_) } -> return $ a
+						_ -> throwError $ concat ["request \"", show r,"\" didn't return an article"]
+			FullPageResource res -> return $ FullPageResource $ res
+			FileResource res -> return $ FileResource $ res
+
+parseReq :: URI -> (URI, URI)
+parseReq uri =
+	let (prefix, '/':subUri) = span (/='/') $ drop 1 $ (fromURI uri)
+	in (toURI prefix, toURI subUri)
 
 calcNav :: Content -> [NavEntry]
 calcNav content =
 	map `flip` content $ \e ->
 		case content_subEntries e of
-			Left uri -> NavEntry $ Link (content_caption e) (T.pack $ fromURI uri)
-			Right subEntries -> NavCategory (content_caption e) (calcNav subEntries)
+			Left uri -> NavEntry $ Link (content_caption e) uri
+			Right subEntries ->
+				NavCategory (content_caption e) $
+				calcNav subEntries
 
 data DirConfig
 	= DirConfig {
@@ -105,8 +124,8 @@ fullPage mUserCss content page =
 -- types
 -----------------------------------
 
-type Routes = M.Map URI Resource
-type PageRoutes = M.Map URI Page
+type Routes = M.Map URI ResourceTemplate
+type PageRoutes = M.Map URI (PageTemplate Request)
 type FileRoutes = M.Map URI FileResInfo
 
 loadSharedData ::
@@ -128,14 +147,14 @@ combineRoutes ::
 combineRoutes =
 	M.unions
 
-addRoute :: URI -> Resource -> Routes -> Routes
+addRoute :: URI -> ResourceTemplate -> Routes -> Routes
 addRoute =
 	M.insert
 
 loadFilesInDir ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
-	(FilePath -> m (Maybe (URI, Resource)))
+	(FilePath -> m (Maybe (URI, ResourceTemplate)))
 	-> FilePath -> m Routes
 loadFilesInDir calcRes dirPath =
 	calc =<< (ls dirPath :: m [FilePath])
@@ -158,7 +177,7 @@ routes_files =
 	M.mapMaybe (\r -> case r of { FileResource info -> Just info; _ -> Nothing}) 
 
 findPage ::
-	(MonadError String m) => URI -> Routes -> m Resource
+	(MonadError String m) => URI -> Routes -> m ResourceTemplate
 findPage key routes =
 	let mRes = M.lookup key routes in
 		maybe
@@ -168,7 +187,7 @@ findPage key routes =
 
 defLoadDirInfo ::
 	(MonadIO m, MonadError String m) =>
-	FilePath -> FilePath -> FilePath -> m (Maybe (URI, Resource))
+	FilePath -> FilePath -> FilePath -> m (Maybe (URI, ResourceTemplate))
 defLoadDirInfo uriPrefix dir path =
 	case takeExtension path of
 		".mp3" -> return $ Just $
@@ -198,6 +217,30 @@ defLoadDirInfo uriPrefix dir path =
 				fileRes_type = ResType $ "unknown",
 				fileRes_file = dir </> path
 			}
+
+instance FromJSON (PageTemplate Request) where
+	parseJSON = withObject "page" $ \x ->
+		Page <$>
+			x .: "page_title" <*>
+			(map fromArticleOrTemplate <$> x .: "page_content")
+
+instance FromJSON ArticleOrTemplate where
+	parseJSON = withObject "article or request" $ \o ->
+		(
+			(\t c -> ArticleOrTemplate $ Right $ Article t c) <$>
+				o .:? "article_title" <*>
+				o .: "article_content"
+		)
+		<|>
+		(
+			(ArticleOrTemplate . Left) <$>
+			do
+				uri <- o .: "uri"
+				mParams <- o.:? "params"
+				return (uri, M.fromList $ fromMaybe [] mParams)
+		)
+
+newtype ArticleOrTemplate = ArticleOrTemplate { fromArticleOrTemplate :: Either Request Article }
 
 -----------------------------------
 -- utils:

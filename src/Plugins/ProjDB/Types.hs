@@ -6,6 +6,7 @@
 module Plugins.ProjDB.Types where
 
 import WebDocumentStructure.JSONOptions
+import Types
 
 import Data.Aeson.TH
 import Data.Aeson
@@ -84,13 +85,13 @@ data ProjectData
 	deriving( Read, Show, Generic, Eq, Ord )
 
 type AudioInfo
-	= FilePath
+	= URI
 	-- = Either URI FilePath
 
 data DocumentInfo 
 	= DocumentInfo {
 		doc_descr :: T.Text,
-		doc_path :: FilePath
+		doc_uri :: URI
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
@@ -157,7 +158,7 @@ instance FromJSON DocumentInfo where
 instance ToJSON DocumentInfo where
 	toJSON DocumentInfo{..} = object $ [
 			"description" .= doc_descr,
-			"path" .= doc_path
+			"uri" .= doc_uri
 		]
 
 instance FromJSON Project where

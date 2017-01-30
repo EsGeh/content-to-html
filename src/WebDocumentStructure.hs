@@ -10,15 +10,16 @@ module WebDocumentStructure(
 
 import WebDocumentStructure.Types
 import WebDocumentStructure.ToHtml
+import Types
 
-import qualified Data.Text as T
 import Data.Aeson
 import GHC.Generics
-import System.FilePath.Posix
+import qualified Data.Map as M
 import Data.Yaml
 import Control.Monad.IO.Class
 import Control.Monad.Except
 import Control.Applicative
+import qualified Data.Text as T
 
 
 --type ContentWithPos = (Content, URI)
@@ -40,9 +41,12 @@ loadContent ::
 	FilePath -> m Content
 loadContent = loadYaml
 
-data Resource
+type Resource = ResourceGen Page
+type ResourceTemplate = ResourceGen (PageTemplate Request)
+
+data ResourceGen page
 	= FullPageResource PageWithNav
-	| PageResource Page
+	| PageResource page
 	| FileResource FileResInfo
 	deriving( Show, Read )
 
@@ -53,16 +57,11 @@ data FileResInfo
 	}
 	deriving( Show, Read )
 
-newtype URI = URI { fromURI :: FilePath }
-	deriving( Eq, Ord, Show, Read, Generic )
+type Request = (URI, Params)
+type Params = M.Map T.Text T.Text
+
 newtype ResType = ResType { fromResType :: T.Text }
 	deriving( Eq, Ord, Show, Read )
-
-toURI :: FilePath -> URI
-toURI =
-	URI . normalizeURI
-	where
-		normalizeURI = ("/" </>)
 
 loadYaml ::
 	(FromJSON res, MonadIO m, MonadError String m) =>
@@ -86,9 +85,3 @@ instance FromJSON ContentEntry where
 			(fmap Right $ x .: "sub")
 			)
 	parseJSON _ = mempty
-
-instance FromJSON URI where
-	parseJSON = (toURI <$>) . parseJSON
-
-instance ToJSON URI where
-	toJSON = toJSON . fromURI

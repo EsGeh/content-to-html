@@ -18,11 +18,11 @@ library
   exposed-modules:     Lib
   other-modules:
     Utils,
+    Types,
     Plugins,
     Plugins.ProjDB,
     Plugins.ProjDB.ToWebDoc, Plugins.ProjDB.Types,
     Plugins.HierarchicWebsite,
-    Html,
     WebDocumentStructure,
     WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
     WebDocumentStructure.JSONOptions

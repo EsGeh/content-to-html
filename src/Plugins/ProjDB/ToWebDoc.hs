@@ -55,9 +55,9 @@ projectToArticle Project{..} _ =
 projDataToWebContent :: ProjectData -> WebContent
 projDataToWebContent x =
 	case x of
-		ProjDB.Audio path -> WebDocs.Audio path
+		ProjDB.Audio uri -> WebDocs.Audio uri
 		ProjDB.Document DocumentInfo{..} ->
-			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_path
+			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_uri
 
 artistToArticle :: ArtistKey -> ProjDB -> Maybe Article
 artistToArticle key db =

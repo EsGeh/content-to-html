@@ -18,11 +18,12 @@ import qualified Plugins
 import qualified Plugins.HierarchicWebsite as Site
 import qualified Plugins.ProjDB as ProjDB
 import WebDocumentStructure --( URI, toURI, fromURI )
---import qualified Html
+import Types
 
 import qualified Lucid
 
 import Web.Spock.Safe
+import Control.Monad.State
 import qualified Data.Map as M
 import Control.Monad.Except
 import qualified Data.Text as T
@@ -95,19 +96,10 @@ spockRoutes =
 				case uriParts of
 					(uriPref:req) ->
 						do
-							(page, _) <- Plugins.routeToPlugins pluginsState (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
+							(page, _) <- runStateT `flip` pluginsState $ Plugins.routeToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
 							sendResource page
 					_ -> return ()
 			)
-			{-
-			<|>
-			-- otherwise:
-			(do
-				let resKey = calcRouteKey uriParts
-				resource <- Routes.findPage resKey routes
-				sendResource resource
-			)
-			-}
 	where
 		calcRouteKey r = toURI (T.unpack $ T.intercalate "/" r)
 		sendResource resource =
@@ -118,14 +110,6 @@ spockRoutes =
 					(lift . html . LT.toStrict . Lucid.renderText . pageToHtml) page
 				FileResource FileResInfo{..} ->
 					lift $ file (fromResType $ fileRes_type) $ fileRes_file
-		{-
-		sendResource resource =
-			case resource of
-				PageResource page ->
-					(lift . html . Html.renderPage . fullPage mUserCss content) page
-				FileResource FileResInfo{..} ->
-					lift $ file (fromResType $ fileRes_type) $ fileRes_file
-		-}
 
 handleErrors ::
 	MonadIO m =>

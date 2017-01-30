@@ -6,8 +6,8 @@ module WebDocumentStructure.ToHtml(
 	Html
 ) where
 
-
 import WebDocumentStructure.Types
+import Types
 
 import Lucid
 import qualified Data.Text as T
@@ -16,8 +16,21 @@ import Data.Monoid
 
 pageWithNavToHtml :: PageWithNav -> Html ()
 pageWithNavToHtml PageWithNav{..} =
-	navToHtml pageWithNav_nav
-	<> pageToHtml pageWithNav_page
+	htmlHeader pageWithNav_headerInfo (page_title pageWithNav_page) $
+		navToHtml pageWithNav_nav
+		<>
+		pageToHtml pageWithNav_page
+
+htmlHeader :: HeaderInfo -> Title -> Html () -> Html ()
+htmlHeader HeaderInfo{..} title content =
+	html_ $ do
+		head_ $ do
+			meta_ [charset_ "UTF-8"]
+			link_ [rel_ "stylesheet", href_ "http://www.w3schools.com/lib/w3.css"]
+			maybe (return ()) `flip` headerInfo_userCss $ \userCss ->
+				link_ [rel_ "stylesheet", href_ (T.pack $ fromURI userCss)]
+			title_ $ toHtml title
+		body_ $ content
 
 navToHtml :: Nav -> Html ()
 navToHtml nav =
@@ -29,7 +42,7 @@ navToHtml nav =
 
 linkToHtml :: Link -> Html ()
 linkToHtml Link{..} =
-	a_ [href_ link_dest] $ toHtml $ T.unpack link_caption
+	a_ [href_ . T.pack . fromURI $ link_dest] $ toHtml $ T.unpack link_caption
 
 pageToHtml :: Page -> Html ()
 pageToHtml x =
@@ -57,14 +70,14 @@ contentToHtml x =
 		Text text ->
 			p_ $ toHtml text
 		Image uri ->
-			img_ [src_ $ T.pack uri, alt_ "an image"]
+			img_ [src_ $ T.pack . fromURI $ uri, alt_ "an image"]
 		Audio uri ->
 			p_ $
 			audio_ [controls_ "hussa"] $ do
-				source_ [src_ $ T.pack uri]
+				source_ [src_ . T.pack . fromURI $ uri]
 				toHtml $ T.pack "your browser seems not to support html5 audio playback"
 		Download DownloadInfo{..} ->
-			a_ [href_ (T.pack download_filename), download_ "" ] $ toHtml $ T.unpack download_caption
+			a_ [href_ . T.pack . fromURI $ download_uri, download_ "" ] $ toHtml $ T.unpack download_caption
 
 headerClass :: [Attribute]
 headerClass =

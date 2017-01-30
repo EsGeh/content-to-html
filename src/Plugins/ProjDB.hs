@@ -9,8 +9,10 @@ module Plugins.ProjDB(
 
 import Plugins.ProjDB.Types
 import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
-import WebDocumentStructure
+import WebDocumentStructure hiding( Request )
+import qualified WebDocumentStructure as WebDoc
 import qualified Plugins
+import Types
 
 import Data.Yaml
 import Control.Monad.State
@@ -30,7 +32,7 @@ load =
 
 answer_req ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.Request -> StateT ProjDB m Resource
+	WebDoc.Request -> Plugins.RunReqT ProjDB m Resource
 answer_req req =
 	get >>= \db ->
 		resFromReq db =<< requestFromParams req
@@ -51,7 +53,7 @@ data Request
 
 requestFromParams ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.Request -> m Request
+	WebDoc.Request -> m Request
 requestFromParams (uri, _)
 	| uri == toURI "artists" = return $ AllArtists
 	| uri == toURI "projects" = return $ AllProjects

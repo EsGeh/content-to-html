@@ -18,12 +18,17 @@ import Types
 import Data.Yaml
 import Control.Monad.State
 import Control.Monad.Except
+import qualified Data.Map as M
+import qualified Data.Text as T
 
 
 plugin :: Plugins.Plugin ProjDB
 plugin = Plugins.defPlugin {
 	-- Plugins.plugin_answerReq = 
-	Plugins.plugin_answerInternalReq = \req -> get >>= \db -> genSection db =<< parseRequest req,
+	Plugins.plugin_answerInternalReq = \req ->
+		get >>= \db ->
+		runReadDBT `flip` db $
+			genSection =<< parseRequest req,
 	Plugins.plugin_descr = "projDB"
 }
 
@@ -33,26 +38,42 @@ load =
 	loadState
 
 data Request
-	= AllArtists
-	| AllProjects
+	= Artists Filter
+	| Projects Filter
+	deriving( Show, Read )
+
+data Filter
+	= FilterAll
+	| FilterEq T.Text
+	deriving( Show, Read )
+
+genSection ::
+	(MonadIO m, MonadError String m) =>
+	Request -> ReadDBT m Section
+genSection r =
+	--((liftIO $ putStrLn $ "request: " ++ show r) >>) $
+	case r of
+		Artists filterExpr ->
+			ToWebDoc.artistsPage $ filterExprToFunc filterExpr
+		Projects filterExpr ->
+			ToWebDoc.projectsPage $ filterExprToFunc filterExpr
 
 parseRequest ::
 	(MonadIO m, MonadError String m) =>
 	WebDoc.Request -> m Request
-parseRequest req@(uri, _)
-	| uri == toURI "artists" = return $ AllArtists
-	| uri == toURI "projects" = return $ AllProjects
+parseRequest req@(uri, params)
+	| uri == toURI "artists" = return $ Artists $ parseFilterExpr params
+	| uri == toURI "projects" = return $ Projects $ parseFilterExpr params
 	| otherwise = 
 		throwError $ "request not found: " ++ show req
 
-genSection ::
-	(MonadIO m, MonadError String m) =>
-	ProjDB -> Request -> m Section
-genSection db = \case
-	AllArtists ->
-		return $ ToWebDoc.artistsPage (const True) db
-	AllProjects ->
-		return $ ToWebDoc.projectsPage (const True) db
+parseFilterExpr params =
+	maybe FilterAll `flip` M.lookup "filter" params $ FilterEq
+
+filterExprToFunc :: (HasKey a key, FromKey key) => Filter -> (a -> Bool)
+filterExprToFunc = \case
+	FilterAll -> const True
+	FilterEq val -> (==val) . fromKey . key
 
 loadState :: (MonadIO m, MonadError String m) => FilePath -> m ProjDB
 loadState cfg =

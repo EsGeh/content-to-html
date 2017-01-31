@@ -8,5 +8,7 @@ subsections:
   - title: projects
     subsections:
       - content:
-          text: "list of all projects in database:"
+          text: "only show inforation about \"ProjectX\""
       - uri: projDB/projects
+        params: # key value pairs to be sent to the "projDB" plugin
+          filter: "ProjectX1"

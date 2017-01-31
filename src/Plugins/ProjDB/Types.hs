@@ -3,6 +3,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Plugins.ProjDB.Types where
 
 import WebDocumentStructure.JSONOptions
@@ -15,8 +19,52 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 import qualified Lens.Micro.Platform as Lns
 import qualified Language.Haskell.TH.Syntax as TH
+import Control.Monad.Reader
 import Control.Applicative
+import Data.Maybe
 
+
+type ReadDBT m a = ReaderT ProjDB m a
+runReadDBT = runReaderT
+
+class (HasKey val key) => DB db key val | db val -> key, db key -> val where
+	dbLookup :: db -> key -> Maybe val
+	dbKeys :: db -> [key]
+
+lookupDB ::
+	(Monad m, DB db key val) =>
+	key -> ReaderT db m (Maybe val)
+lookupDB key = ask >>=
+	return . flip dbLookup key
+
+select ::
+	forall m db val key .
+	(Monad m, DB db key val) =>
+	(val -> Bool)
+	-> ReaderT db m [val]
+select cond = ask >>= \db ->
+	return $
+	filter cond $
+	mapMaybe (dbLookup db) $
+	dbKeys db
+
+class HasKey val key | val -> key where
+	key :: val -> key
+
+instance HasKey Artist ArtistKey where
+	key = artist_name
+instance HasKey Project ProjectKey where
+	key = project_name
+instance HasKey Person PersonKey where
+	key = person_name
+
+instance DB ProjDB ArtistKey Artist where
+	dbLookup = flip lookupArtist
+	dbKeys = allArtists
+
+instance DB ProjDB ProjectKey Project where
+	dbLookup = flip lookupProject
+	dbKeys = allProjects
 
 data ProjDB =
 	ProjDB {
@@ -25,13 +73,25 @@ data ProjDB =
 		db_persons :: M.Map PersonKey Person
 	}
 
-type ArtistKey = Name
-type ProjectKey = Name
-type PersonKey = Name
+newtype ArtistKey = ArtistKey { fromArtistKey :: Name }
+	deriving( Eq, Ord, Read, Show )
+newtype ProjectKey = ProjectKey { fromProjectKey :: Name }
+	deriving( Eq, Ord, Read, Show )
+newtype PersonKey = PersonKey { fromPersonKey :: Name}
+	deriving( Eq, Ord, Read, Show )
+
+class FromKey a where
+	fromKey :: a -> T.Text
+instance FromKey ArtistKey where
+	fromKey = fromArtistKey
+instance FromKey ProjectKey where
+	fromKey = fromProjectKey
+instance FromKey PersonKey where
+	fromKey = fromPersonKey
 
 type Name = T.Text
 
-allArtists, allProjects, allPersons :: ProjDB -> [Name]
+--allArtists, allProjects, allPersons :: ProjDB -> [Name]
 allArtists = M.keys . db_artists
 allProjects = M.keys . db_projects
 allPersons = M.keys . db_persons
@@ -43,7 +103,7 @@ lookupProject key = M.lookup key . db_projects
 lookupPerson :: PersonKey -> ProjDB -> Maybe Person
 lookupPerson key = M.lookup key . db_persons
 
-projectsFromArtist :: Name -> ProjDB -> [Project]
+projectsFromArtist :: ArtistKey -> ProjDB -> [Project]
 projectsFromArtist key db =
 	M.elems $
 	M.filter ((key `elem`) . project_artist) $
@@ -57,14 +117,14 @@ data Entry
 
 data Artist
 	= Artist {
-		artist_name :: Name, -- key
+		artist_name :: ArtistKey, -- key
 		artist_persons :: [PersonKey]
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
 data Project
 	= Project {
-		project_name :: Name, -- key
+		project_name :: ProjectKey, -- key
 		project_artist :: [ArtistKey],
 		project_data :: [ProjectData]
 		--project_data :: [WebDocsWebContent]
@@ -73,7 +133,7 @@ data Project
 
 data Person
 	= Person {
-		person_name :: T.Text,
+		person_name :: PersonKey,
 		person_born :: Maybe Date,
 		person_dead :: Maybe Date
 	}
@@ -176,6 +236,20 @@ instance ToJSON Project where
 		]
 		++
 		listMaybeEmpty "data" project_data
+
+instance ToJSON ArtistKey where
+	toJSON = toJSON . fromArtistKey
+instance ToJSON ProjectKey where
+	toJSON = toJSON . fromProjectKey
+instance ToJSON PersonKey where
+	toJSON = toJSON . fromPersonKey
+
+instance FromJSON ArtistKey where
+	parseJSON = fmap ArtistKey . parseJSON
+instance FromJSON ProjectKey where
+	parseJSON = fmap ProjectKey . parseJSON
+instance FromJSON PersonKey where
+	parseJSON = fmap PersonKey . parseJSON
 
 listMaybeEmpty ::
 	(ToJSON a, KeyValue k) =>

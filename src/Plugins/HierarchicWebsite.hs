@@ -230,15 +230,16 @@ newtype RequestOrSection = RequestOrSection { fromRequestOrSection :: Either Req
 
 instance FromJSON RequestOrSection where
 	parseJSON = withObject "section" $ \o ->
+		((RequestOrSection . Right) <$> parseJSON (Object o))
+		<|>
 		(
 			(RequestOrSection . Left) <$>
 			do
 				uri <- o .: "uri"
-				mParams <- o.:? "params"
-				return (uri, M.fromList $ fromMaybe [] mParams)
+				mParams <-
+					o.:? "params"
+				return (uri, fromMaybe M.empty mParams)
 		)
-		<|>
-		((RequestOrSection . Right) <$> parseJSON (Object o))
 
 -----------------------------------
 -- utils:

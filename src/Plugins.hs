@@ -11,7 +11,6 @@ import Types
 import Control.Monad.IO.Class
 import Control.Monad.Except
 import qualified Control.Monad.State as St
---import Control.Monad.Reader
 import qualified Data.Text as T
 import qualified Data.Map as M
 

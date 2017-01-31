@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 module Plugins.ProjDB.ToWebDoc(
 	projectsPage,
@@ -12,42 +13,36 @@ import Plugins.ProjDB.Types as ProjDB
 import WebDocumentStructure.Types as WebDocs
 
 import qualified Data.Text as T
-import Data.Maybe
+import Control.Monad.Except
 
 
 projectsPage ::
-	(Project -> Bool) -> ProjDB
-	-> WebDocs.Section
-projectsPage filterProjects db =
-	WebDocs.mainSection $
-	catMaybes $
-	(map $ flip projectToSection db) $
-	filter filterProjects $
-	catMaybes $
-	(map $ flip ProjDB.lookupProject db) $
-	ProjDB.allProjects db
+	(Monad m, MonadError String m) =>
+	(Project -> Bool)
+	-> ReadDBT m WebDocs.Section
+projectsPage filterProjects =
+	WebDocs.mainSection <$>
+	do
+		projects <- select filterProjects
+		mapM projectToSection projects
 
 artistsPage ::
-	(ArtistKey -> Bool) -> ProjDB
-	-> WebDocs.Section
-artistsPage filterFunc db =
-	WebDocs.mainSection $
-	catMaybes $
-	(map $ flip artistToSection db) $
-	filter filterFunc $
-	ProjDB.allArtists db
-
-projectToSection :: Project -> ProjDB -> Maybe Section
-projectToSection Project{..} _ =
+	(Monad m, MonadError String m) =>
+	(Artist -> Bool)
+	-> ReadDBT m WebDocs.Section
+artistsPage filterFunc =
+	WebDocs.mainSection <$>
 	do
-		{-
-		artist <-
-			catMaybes $ -- ??
-			map (flip lookupArtist db) $
-			project_artist project
-		-}
+		artists <- select filterFunc
+		mapM artistToSection artists
+
+projectToSection ::
+	(Monad m, MonadError String m) =>
+	Project -> ReadDBT m Section
+projectToSection Project{..} =
+	do
 		return $
-			mainSectionWithTitle project_name $
+			mainSectionWithTitle (fromProjectKey project_name) $
 			map (section . projDataToWebContent) project_data
 
 projDataToWebContent :: ProjectData -> WebContent
@@ -57,19 +52,19 @@ projDataToWebContent x =
 		ProjDB.Document DocumentInfo{..} ->
 			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_uri
 
-artistToSection :: ArtistKey -> ProjDB -> Maybe Section
-artistToSection key db =
+artistToSection ::
+	(Monad m, MonadError String m) =>
+	Artist -> ReadDBT m Section
+artistToSection artist =
 	do
-		artist <- lookupArtist key db
-		let projects =
-			projectsFromArtist (artist_name artist) db
-			:: [Project]
+		projects <-
+			select $ \proj -> artist_name artist `elem` project_artist proj
 		return $
-			mainSectionWithTitle (artist_name artist) $ [
+			mainSectionWithTitle (fromArtistKey $ artist_name artist) $ [
 				mainSectionWithTitle "projects" $ map section [
 					Text $
 					T.intercalate ", " $
-					map project_name $
+					map (fromProjectKey . project_name) $
 					projects
 				]
 			]

@@ -4,6 +4,38 @@
     name: "artistX"
     persons: []
 
+- artist:
+    name: "artistY"
+    persons: []
+
+- artist:
+    name: "artistZ"
+    persons: []
+
+##
+
 - project:
-    name: "Project"
+    name: "ProjectX1"
     artist: ["artistX"]
+    data:
+      - audio: /data/test.mp3
+
+- project:
+    name: "ProjectX2"
+    artist: ["artistX"]
+
+- project:
+    name: "ProjectY1"
+    artist: ["artistY"]
+
+- project:
+    name: "ProjectY2"
+    artist: ["artistY"]
+
+- project:
+    name: "ProjectZ1"
+    artist: ["artistZ"]
+
+- project:
+    name: "ProjectZ2"
+    artist: ["artistZ"]

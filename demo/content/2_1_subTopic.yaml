@@ -1,6 +1,4 @@
-page_title: "chapter 2.1"
-page_content:
-  - article_content:
-    - section_content:
-        - text: bla bla bla
-        - text: bla bla bla
+title: "chapter 2.1"
+subsections:
+  - content:
+      text: bla bla bla

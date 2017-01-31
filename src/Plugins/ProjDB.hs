@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
 module Plugins.ProjDB(
 	load,
 	ProjDB(..),
@@ -20,8 +21,9 @@ import Control.Monad.Except
 
 
 plugin :: Plugins.Plugin ProjDB
-plugin = Plugins.Plugin {
-	Plugins.plugin_answerReq = answer_req,
+plugin = Plugins.defPlugin {
+	-- Plugins.plugin_answerReq = 
+	Plugins.plugin_answerInternalReq = \req -> get >>= \db -> genSection db =<< parseRequest req,
 	Plugins.plugin_descr = "projDB"
 }
 
@@ -30,41 +32,27 @@ load =
 	fmap (plugin, ) .
 	loadState
 
-answer_req ::
-	(MonadIO m, MonadError String m) =>
-	WebDoc.Request -> Plugins.RunReqT ProjDB m Resource
-answer_req req =
-	get >>= \db ->
-		resFromReq db =<< requestFromParams req
-
-resFromReq ::
-	(MonadIO m, MonadError String m) =>
-	ProjDB -> Request -> m Resource
-resFromReq db req =
-	case req of
-		AllArtists ->
-			return $ PageResource $ ToWebDoc.artistsPage "artists" (const True) db
-		AllProjects ->
-			return $ PageResource $ ToWebDoc.projectsPage "projects" (const True) db
-
 data Request
 	= AllArtists
 	| AllProjects
 
-requestFromParams ::
+parseRequest ::
 	(MonadIO m, MonadError String m) =>
 	WebDoc.Request -> m Request
-requestFromParams (uri, _)
+parseRequest req@(uri, _)
 	| uri == toURI "artists" = return $ AllArtists
 	| uri == toURI "projects" = return $ AllProjects
 	| otherwise = 
-		throwError "request not found!"
-{-
-	maybe (throwError "request not found!") return $
-		(const AllArtists <$> M.lookup "artists" p)
-		<|>
-		(const AllArtists <$> M.lookup "projects" p)
--}
+		throwError $ "request not found: " ++ show req
+
+genSection ::
+	(MonadIO m, MonadError String m) =>
+	ProjDB -> Request -> m Section
+genSection db = \case
+	AllArtists ->
+		return $ ToWebDoc.artistsPage (const True) db
+	AllProjects ->
+		return $ ToWebDoc.projectsPage (const True) db
 
 loadState :: (MonadIO m, MonadError String m) => FilePath -> m ProjDB
 loadState cfg =

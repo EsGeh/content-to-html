@@ -1,8 +1,12 @@
-page_title: music
-page_content:
-  - uri: "projDB/artists"
-  - article_title: Some Piece
-    article_content:
-    - section_content:
-        - audio: /content/data/test.mp3
-        - text: description
+title: music
+subsections:
+  - title: artists
+    subsections:
+      - content:
+          text: "list of artists in the database:"
+      - uri: projDB/artists
+  - title: projects
+    subsections:
+      - content:
+          text: "list of all projects in database:"
+      - uri: projDB/projects

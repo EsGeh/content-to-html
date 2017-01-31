@@ -3,8 +3,8 @@
 module Plugins.ProjDB.ToWebDoc(
 	projectsPage,
 	artistsPage,
-	projectToArticle,
-	artistToArticle,
+	projectToSection,
+	artistToSection,
 	-- artistsList, -- needed?
 ) where
 
@@ -16,29 +16,29 @@ import Data.Maybe
 
 
 projectsPage ::
-	T.Text -> (Project -> Bool) -> ProjDB
-	-> WebDocs.Page
-projectsPage title filterProjects db =
-	WebDocs.Page title $
+	(Project -> Bool) -> ProjDB
+	-> WebDocs.Section
+projectsPage filterProjects db =
+	WebDocs.mainSection $
 	catMaybes $
-	(map $ flip projectToArticle db) $
+	(map $ flip projectToSection db) $
 	filter filterProjects $
 	catMaybes $
 	(map $ flip ProjDB.lookupProject db) $
 	ProjDB.allProjects db
 
 artistsPage ::
-	T.Text -> (ArtistKey -> Bool) -> ProjDB
-	-> WebDocs.Page
-artistsPage title filterFunc db =
-	WebDocs.Page title $
+	(ArtistKey -> Bool) -> ProjDB
+	-> WebDocs.Section
+artistsPage filterFunc db =
+	WebDocs.mainSection $
 	catMaybes $
-	(map $ flip artistToArticle db) $
+	(map $ flip artistToSection db) $
 	filter filterFunc $
 	ProjDB.allArtists db
 
-projectToArticle :: Project -> ProjDB -> Maybe Article
-projectToArticle Project{..} _ =
+projectToSection :: Project -> ProjDB -> Maybe Section
+projectToSection Project{..} _ =
 	do
 		{-
 		artist <-
@@ -47,10 +47,8 @@ projectToArticle Project{..} _ =
 			project_artist project
 		-}
 		return $
-			Article (Just $ project_name) $
-			[ Section Nothing $
-				map projDataToWebContent project_data
-			]
+			mainSectionWithTitle project_name $
+			map (section . projDataToWebContent) project_data
 
 projDataToWebContent :: ProjectData -> WebContent
 projDataToWebContent x =
@@ -59,17 +57,16 @@ projDataToWebContent x =
 		ProjDB.Document DocumentInfo{..} ->
 			Download $ DownloadInfo ("download " `T.append` doc_descr) doc_uri
 
-artistToArticle :: ArtistKey -> ProjDB -> Maybe Article
-artistToArticle key db =
+artistToSection :: ArtistKey -> ProjDB -> Maybe Section
+artistToSection key db =
 	do
 		artist <- lookupArtist key db
 		let projects =
 			projectsFromArtist (artist_name artist) db
 			:: [Project]
 		return $
-			Article
-			(Just $ artist_name artist) $ [
-				Section (Just $ "projects") $ [
+			mainSectionWithTitle (artist_name artist) $ [
+				mainSectionWithTitle "projects" $ map section [
 					Text $
 					T.intercalate ", " $
 					map project_name $

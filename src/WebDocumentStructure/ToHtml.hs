@@ -12,14 +12,15 @@ import Types
 import Lucid
 import qualified Data.Text as T
 import Data.Monoid
+import Data.Maybe
 
 
 pageWithNavToHtml :: PageWithNav -> Html ()
 pageWithNavToHtml PageWithNav{..} =
-	htmlHeader pageWithNav_headerInfo (page_title pageWithNav_page) $
+	htmlHeader pageWithNav_headerInfo (fromMaybe "untitled" $ sectionTitle pageWithNav_page) $
 		navToHtml pageWithNav_nav
 		<>
-		pageToHtml pageWithNav_page
+		sectionToHtml pageWithNav_page
 
 htmlHeader :: HeaderInfo -> Title -> Html () -> Html ()
 htmlHeader HeaderInfo{..} title content =
@@ -44,25 +45,11 @@ linkToHtml :: Link -> Html ()
 linkToHtml Link{..} =
 	a_ [href_ . T.pack . fromURI $ link_dest] $ toHtml $ T.unpack link_caption
 
-pageToHtml :: Page -> Html ()
-pageToHtml x =
-	mconcat $
-	map articleToHtml $
-	page_content x
-
-articleToHtml :: Article -> Html ()
-articleToHtml x =
-	renderArticle (article_title x) $
-	mconcat $
-	map sectionToHtml $
-	article_content x
-
 sectionToHtml :: Section -> Html ()
 sectionToHtml x =
-	renderSection (section_title x) $
-		mconcat $
-		map contentToHtml $
-		section_content x
+	renderSection (sectionTitle x) $
+	eitherSection (contentToHtml . section_content) `flip` x $
+	(mconcat . map sectionToHtml . section_content)
 
 contentToHtml :: WebContent -> Html ()
 contentToHtml x =

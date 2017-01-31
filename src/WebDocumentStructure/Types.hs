@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 module WebDocumentStructure.Types where
 
 import WebDocumentStructure.JSONOptions
@@ -19,7 +20,7 @@ import Control.Monad.Identity
 data PageWithNav
 	= PageWithNav {
 		pageWithNav_nav :: Nav,
-		pageWithNav_page :: Page,
+		pageWithNav_page :: Section,
 		pageWithNav_headerInfo :: HeaderInfo
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
@@ -44,37 +45,84 @@ data Link
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
-type Page = PageGen Article
-type PageTemplate article = PageGen (Either article Article)
+type Section = SectionGen SectionInfo
+type SectionTemplate var = SectionGen (Either var SectionInfo)
 
-data PageGen article
-	= Page {
-		page_title :: Title,
-		page_content :: [article]
+data SectionGen sectionInfo
+	= SectionEntry sectionInfo
+	| MainSection (MainSectionInfo sectionInfo)
+	deriving( Show, Read, Eq, Ord, Generic )
+
+type MainSectionInfo sectionInfo = SectionInfoGen [SectionGen sectionInfo]
+type SectionInfo = SectionInfoGen WebContent
+
+data SectionInfoGen content
+	= SectionInfo {
+		section_title :: Maybe Title,
+		section_content :: content
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
-page_mapToContentM f p@Page{..} =
-	f page_content >>= \new ->
-	return p{ page_content = new }
+{-
+instance FromJSON Section where
+	parseJSON = withObject "section" $ \o ->
+		(SectionEntry <$> parseJSON (Object o))
+		<|>
+		(MainSection <$> parseJSON (Object o))
 
-page_mapToContent f = runIdentity . page_mapToContentM (return . f)
+instance FromJSON (MainSectionInfo SectionInfo) where
+	parseJSON = withObject "container section info" $ \o ->
+		do
+			title <- o .: "title"
+			content <- o .: "subsections"
+			return $ SectionInfo title content
+-}
 
-instance FromJSON Page where
---instance FromJSON (PageTemplate Request) where
+instance FromJSON SectionInfo where
+	parseJSON = withObject "section info" $ \o ->
+		do
+			title <- o .:? "title"
+			content <- o .: "content"
+			return $ SectionInfo title content
 
-data Article
-	= Article {
-		article_title :: Maybe Title,
-		article_content :: [Section]
-	}
-	deriving( Show, Read, Eq, Ord, Generic )
+sectionInfo_mapToContentM ::
+	Monad m =>
+	(content -> m content') -> SectionInfoGen content -> m (SectionInfoGen content')
+sectionInfo_mapToContentM f p@SectionInfo{..} =
+	f section_content >>= \new ->
+	return p{ section_content = new }
 
-data Section = Section {
-	section_title :: Maybe Title,
-	section_content:: [WebContent]
-}
-	deriving( Show, Read, Eq, Ord, Generic )
+sectionInfo_mapToContent :: 
+	(content -> content') -> SectionInfoGen content -> SectionInfoGen content'
+sectionInfo_mapToContent f = runIdentity . sectionInfo_mapToContentM (return . f)
+
+section :: content -> SectionGen (SectionInfoGen content)
+section = SectionEntry . SectionInfo Nothing
+sectionWithTitle :: T.Text -> content -> SectionGen (SectionInfoGen content)
+sectionWithTitle title = SectionEntry . SectionInfo (Just title)
+mainSection :: [SectionGen info] -> SectionGen info
+mainSection = MainSection . SectionInfo Nothing
+mainSectionWithTitle :: T.Text -> [SectionGen info] -> SectionGen info
+mainSectionWithTitle title = MainSection . SectionInfo (Just title)
+
+eitherSection ::
+	(info -> b)
+	-> (MainSectionInfo info -> b)
+	-> SectionGen info -> b
+eitherSection l r = \case
+	SectionEntry e -> l e
+	MainSection e -> r e
+
+class HasTitle a where
+	sectionTitle :: a -> Maybe Title
+
+instance HasTitle (SectionInfoGen content) where
+	sectionTitle = section_title
+
+instance HasTitle (SectionGen (SectionInfoGen content)) where
+	sectionTitle (SectionEntry e) = sectionTitle e
+	sectionTitle (MainSection e) = sectionTitle e
+
 
 data WebContent
 	= Text T.Text
@@ -106,6 +154,6 @@ instance ToJSON DownloadInfo where
 		]
 
 -- $(deriveJSON jsonOptions ''Page)
-$(deriveJSON jsonOptions ''Article)
-$(deriveJSON jsonOptions ''Section)
+-- $(deriveJSON jsonOptions ''Article)
+-- $(deriveJSON jsonOptions ''Section)
 $(deriveJSON jsonOptions ''WebContent)

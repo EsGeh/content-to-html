@@ -43,7 +43,7 @@ data Config
 	deriving (Generic, Show, Read)
 
 plugin :: Plugins.Plugin RoutesState
-plugin = Plugin {
+plugin = defPlugin {
 	plugin_answerReq = answer_req,
 	plugin_descr = "hierarchic website"
 }
@@ -74,18 +74,24 @@ answer_req ::
 answer_req (resKey,_) =
 	get >>= \RoutesState{..} ->
 		findPage resKey routes >>= \case
-			PageResource page ->
+			PageResource x ->
 				fmap (FullPageResource . (PageWithNav (calcNav content) `flip` (HeaderInfo userCss))) $
-				page_mapToContentM `flip` page $ mapM $
-				either `flip` return $ \(uri',params) ->
-				let (pluginKey, uri) = parseReq uri' in
-				--((liftIO . putStrLn $ show $ (pluginKey, uri, params)) >>) $
-				lift $ Plugins.routeToPlugins pluginKey (uri, params) >>= \r ->
-					case r of
-						PageResource Page{ page_content=(a:_) } -> return $ a
-						_ -> throwError $ concat ["request \"", show r,"\" didn't return an article"]
+				fillTemplate x
 			FullPageResource res -> return $ FullPageResource $ res
 			FileResource res -> return $ FileResource $ res
+
+fillTemplate ::
+	(MonadIO m, MonadError String m) =>
+	SectionTemplate Request ->
+	Plugins.RunReqT RoutesState m Section
+fillTemplate = \case
+	SectionEntry (Left (uri',params)) ->
+		let (prefix, uri) = parseReq uri' in
+		lift $ Plugins.requestToPluginsInternal prefix (uri,params)
+	SectionEntry (Right info) -> return $ SectionEntry info
+	MainSection info ->
+		fmap MainSection $
+		sectionInfo_mapToContentM `flip` info $ mapM fillTemplate
 
 parseReq :: URI -> (URI, URI)
 parseReq uri =
@@ -111,21 +117,12 @@ data DirConfig
 defDirConfig :: FilePath -> DirConfig
 defDirConfig path = DirConfig path path
 
-{-
-fullPage :: Maybe URI -> Content -> Page -> Html ()
-fullPage mUserCss content page =
-	Html.basePage mUserCss (page_title page) $
-	Html.nav content
-	<>
-	pageToHtml page
--}
-
 -----------------------------------
 -- types
 -----------------------------------
 
 type Routes = M.Map URI ResourceTemplate
-type PageRoutes = M.Map URI (PageTemplate Request)
+type PageRoutes = M.Map URI (SectionTemplate Request)
 type FileRoutes = M.Map URI FileResInfo
 
 loadSharedData ::
@@ -218,29 +215,30 @@ defLoadDirInfo uriPrefix dir path =
 				fileRes_file = dir </> path
 			}
 
-instance FromJSON (PageTemplate Request) where
-	parseJSON = withObject "page" $ \x ->
-		Page <$>
-			x .: "page_title" <*>
-			(map fromArticleOrTemplate <$> x .: "page_content")
-
-instance FromJSON ArticleOrTemplate where
-	parseJSON = withObject "article or request" $ \o ->
-		(
-			(\t c -> ArticleOrTemplate $ Right $ Article t c) <$>
-				o .:? "article_title" <*>
-				o .: "article_content"
-		)
+instance FromJSON (SectionTemplate Request) where
+	parseJSON = withObject "section" $ \x ->
+		((SectionEntry . fromRequestOrSection) <$> parseJSON (Object x))
 		<|>
 		(
-			(ArticleOrTemplate . Left) <$>
+			do
+				title <- x .:? "title"
+				content <- x .: "subsections"
+				return $ MainSection $ SectionInfo title content
+		)
+
+newtype RequestOrSection = RequestOrSection { fromRequestOrSection :: Either Request SectionInfo }
+
+instance FromJSON RequestOrSection where
+	parseJSON = withObject "section" $ \o ->
+		(
+			(RequestOrSection . Left) <$>
 			do
 				uri <- o .: "uri"
 				mParams <- o.:? "params"
 				return (uri, M.fromList $ fromMaybe [] mParams)
 		)
-
-newtype ArticleOrTemplate = ArticleOrTemplate { fromArticleOrTemplate :: Either Request Article }
+		<|>
+		((RequestOrSection . Right) <$> parseJSON (Object o))
 
 -----------------------------------
 -- utils:

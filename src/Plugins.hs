@@ -21,7 +21,19 @@ data Plugin state
 		plugin_answerReq ::
 			forall m . (MonadIO m, MonadError String m) =>
 			Request -> RunReqT state m Resource,
+		plugin_answerInternalReq ::
+			forall m . (MonadIO m, MonadError String m) =>
+			Request -> RunReqT state m Section,
 		plugin_descr :: T.Text
+	}
+defPlugin :: Plugin state
+defPlugin =
+	Plugin{
+		plugin_answerReq = \_ ->
+			throwError "no requests allowed",
+		plugin_answerInternalReq = \_ ->
+			throwError "no internal requests allowed",
+		plugin_descr = "no description available"
 	}
 
 type RunReqT state m a =
@@ -52,6 +64,49 @@ loadPlugins pluginsLoadParams =
 					PluginStateCont <$>
 						loader pluginCfg
 
+requestToPluginsInternal ::
+	(MonadIO m, MonadError String m) =>
+	URI -> Request -> St.StateT Plugins m Section
+requestToPluginsInternal =
+	requestToPlugins' runPlugin
+	where
+		runPlugin ::
+			(MonadIO m, MonadError String m) =>
+			Plugin state -> state -> Request -> St.StateT Plugins m (Section, state)
+		runPlugin plugin st req =
+			St.runStateT `flip` st $ plugin_answerInternalReq plugin req 
+
+requestToPlugins ::
+	(MonadIO m, MonadError String m) =>
+	URI -> Request -> St.StateT Plugins m Resource
+requestToPlugins =
+	requestToPlugins' runPlugin
+	where
+		runPlugin ::
+			(MonadIO m, MonadError String m) =>
+			Plugin state -> state -> Request -> St.StateT Plugins m (Resource, state)
+		runPlugin plugin st req =
+			St.runStateT `flip` st $ plugin_answerReq plugin req 
+
+requestToPlugins' ::
+	(MonadIO m, MonadError String m) =>
+	(forall state . Plugin state -> state -> Request -> St.StateT Plugins m (res, state))
+	-> URI -> Request -> St.StateT Plugins m res
+requestToPlugins' runReq prefix request =
+	St.get >>= \plugins ->
+	do
+		pluginState <-
+			maybe (throwError $ "no plugin with prefix " ++ fromURI prefix) return $
+			M.lookup prefix plugins
+		(res, newState) <-
+			case pluginState of
+				PluginStateCont (plugin, st) ->
+					(\(res,s) -> (res, PluginStateCont (plugin, s))) <$>
+					runReq plugin st request
+		St.put $ M.insert prefix newState plugins
+		return res 
+
+{-
 routeToPlugins ::
 	(MonadIO m, MonadError String m) =>
 	URI -> Request -> St.StateT Plugins m Resource
@@ -68,13 +123,7 @@ routeToPlugins prefix request =
 					runPlugin plugin st request
 		St.put $ M.insert prefix newState plugins
 		return res 
-
-runPlugin ::
-	(MonadIO m, MonadError String m) =>
-	Plugin state -> state -> Request -> St.StateT Plugins m (Resource, state)
-runPlugin plugin st req =
-	--((liftIO $ putStrLn $ "running plugin: " ++ show (plugin_descr plugin)) >>) $
-	St.runStateT `flip` st $ plugin_answerReq plugin req 
+-}
 
 -- test plugin:
 
@@ -86,7 +135,7 @@ test_load path =
 		liftIO $ putStrLn $ "test: loading " ++ path
 		return $
 			(,TestState)
-			Plugin {
+			defPlugin {
 				plugin_answerReq = test_answer,
 				plugin_descr = "test description"
 			}

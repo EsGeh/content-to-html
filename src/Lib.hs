@@ -96,7 +96,7 @@ spockRoutes =
 				case uriParts of
 					(uriPref:req) ->
 						do
-							(page, _) <- runStateT `flip` pluginsState $ Plugins.routeToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
+							(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
 							sendResource page
 					_ -> return ()
 			)
@@ -107,7 +107,7 @@ spockRoutes =
 				FullPageResource page ->
 					(lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml) page
 				PageResource page ->
-					(lift . html . LT.toStrict . Lucid.renderText . pageToHtml) page
+					(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml) page
 				FileResource FileResInfo{..} ->
 					lift $ file (fromResType $ fileRes_type) $ fileRes_file
 

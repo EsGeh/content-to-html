@@ -41,6 +41,17 @@ loadContent ::
 	FilePath -> m Content
 loadContent = loadYaml
 
+type ResourceTemplate = ResourceGen (SectionTemplate Request)
+
+type Resource = ResourceGen Section
+
+data ResourceGen section
+	= FullPageResource PageWithNav
+	| PageResource section
+	| FileResource FileResInfo
+	deriving( Show, Read )
+
+{-
 type Resource = ResourceGen Page
 type ResourceTemplate = ResourceGen (PageTemplate Request)
 
@@ -49,6 +60,7 @@ data ResourceGen page
 	| PageResource page
 	| FileResource FileResInfo
 	deriving( Show, Read )
+-}
 
 data FileResInfo
 	= FileResInfo {

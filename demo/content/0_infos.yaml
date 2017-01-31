@@ -1,6 +1,5 @@
-page_title: general information
-page_content:
-  - article_content:
-    - section_content:
-        - text: introduction
-        - text: bla bla bla
+title: general information
+subsections:
+  - title: introduction
+    content:
+      text: bla bla bla bla

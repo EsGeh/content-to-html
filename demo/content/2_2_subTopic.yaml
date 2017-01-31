@@ -1,6 +1,6 @@
-page_title: "chapter 2.2"
-page_content:
-  - article_content:
-    - section_content:
-        - text: bla bla bla
-        - text: bla bla bla
+title: "chapter 2.2"
+subsections:
+  - content:
+      text: bla bla bla
+  - content:
+      text: bla bla bla

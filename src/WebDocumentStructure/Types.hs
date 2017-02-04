@@ -63,6 +63,18 @@ data SectionInfoGen content
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
+instance Functor SectionGen where
+	fmap f = \case
+		SectionEntry x -> SectionEntry $ f x
+		MainSection l -> MainSection $ sectionInfo_mapToContent (map $ fmap f) l
+
+{-
+instance Foldable SectionGen where
+	foldMap toM = \case
+		SectionEntry info -> toM info
+		MainSection info ->
+-}
+
 {-
 instance FromJSON Section where
 	parseJSON = withObject "section" $ \o ->

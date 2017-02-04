@@ -8,7 +8,9 @@ subsections:
   - title: projects
     subsections:
       - content:
-          text: "only show inforation about \"ProjectX\""
+          text: "list projects except those by \"artistX\":"
       - uri: projDB/projects
         params: # key value pairs to be sent to the "projDB" plugin
-          filter: "ProjectX1"
+          not: ""
+          artist: "artistX"
+          # name: "ProjectX1"

@@ -96,7 +96,7 @@ spockRoutes =
 				case uriParts of
 					(uriPref:req) ->
 						do
-							(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, M.fromList reqParams)
+							(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, reqParams)
 							sendResource page
 					_ -> return ()
 			)

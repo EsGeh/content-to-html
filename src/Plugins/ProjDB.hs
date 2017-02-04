@@ -9,6 +9,7 @@ module Plugins.ProjDB(
 ) where
 
 import Plugins.ProjDB.Types
+import Plugins.ProjDB.DB
 import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
 import WebDocumentStructure hiding( Request )
 import qualified WebDocumentStructure as WebDoc
@@ -18,8 +19,8 @@ import Types
 import Data.Yaml
 import Control.Monad.State
 import Control.Monad.Except
-import qualified Data.Map as M
 import qualified Data.Text as T
+import Data.List
 
 
 plugin :: Plugins.Plugin ProjDB
@@ -44,36 +45,55 @@ data Request
 
 data Filter
 	= FilterAll
-	| FilterEq T.Text
+	| FilterNot Filter
+	| FieldName `FilterEq` T.Text
 	deriving( Show, Read )
 
 genSection ::
 	(MonadIO m, MonadError String m) =>
 	Request -> ReadDBT m Section
 genSection r =
-	--((liftIO $ putStrLn $ "request: " ++ show r) >>) $
+	((liftIO $ putStrLn $ "request: " ++ show r) >>) $
 	case r of
 		Artists filterExpr ->
-			ToWebDoc.artistsPage $ filterExprToFunc filterExpr
+			ToWebDoc.artistsPage =<< (lift $ filterExprToFunc filterExpr)
 		Projects filterExpr ->
-			ToWebDoc.projectsPage $ filterExprToFunc filterExpr
+			ToWebDoc.projectsPage =<< (lift $ filterExprToFunc filterExpr)
 
 parseRequest ::
 	(MonadIO m, MonadError String m) =>
 	WebDoc.Request -> m Request
 parseRequest req@(uri, params)
-	| uri == toURI "artists" = return $ Artists $ parseFilterExpr params
-	| uri == toURI "projects" = return $ Projects $ parseFilterExpr params
+	| uri == toURI "artists" = Artists <$> parseFilterExpr params
+	| uri == toURI "projects" = Projects <$> parseFilterExpr params
 	| otherwise = 
 		throwError $ "request not found: " ++ show req
 
-parseFilterExpr params =
-	maybe FilterAll `flip` M.lookup "filter" params $ FilterEq
+parseFilterExpr ::
+	(MonadIO m, MonadError String m) =>
+	Params -> m Filter
+parseFilterExpr = f . sortParams
+	where
+		f params =
+			case params of
+				("not",_): subExpr -> FilterNot <$> f subExpr
+				(field, value):_ -> return $ (FieldName field) `FilterEq` value
+				[] -> return $ FilterAll
+				-- _ -> throwError $ "error: could not parse filter: " ++ show params
+		sortParams =
+			sortBy $ \x _ -> if fst x == "not" then LT else GT
 
-filterExprToFunc :: (HasKey a key, FromKey key) => Filter -> (a -> Bool)
+filterExprToFunc ::
+	forall m a .
+	(MonadIO m, MonadError String m, ToJSON a) =>
+	Filter -> m (a -> Bool)
 filterExprToFunc = \case
-	FilterAll -> const True
-	FilterEq val -> (==val) . fromKey . key
+	FilterAll -> return $ const True
+	FilterNot subExpr ->
+		(not .) <$> filterExprToFunc subExpr
+	fieldName `FilterEq` val -> return $
+		\a ->
+			contains fieldName a val
 
 loadState :: (MonadIO m, MonadError String m) => FilePath -> m ProjDB
 loadState cfg =

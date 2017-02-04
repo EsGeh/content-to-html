@@ -1,14 +1,16 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 module Plugins.ProjDB.Types where
 
+import Plugins.ProjDB.DB
 import WebDocumentStructure.JSONOptions
 import Types
 
@@ -21,50 +23,8 @@ import qualified Lens.Micro.Platform as Lns
 import qualified Language.Haskell.TH.Syntax as TH
 import Control.Monad.Reader
 import Control.Applicative
-import Data.Maybe
-
 
 type ReadDBT m a = ReaderT ProjDB m a
-runReadDBT = runReaderT
-
-class (HasKey val key) => DB db key val | db val -> key, db key -> val where
-	dbLookup :: db -> key -> Maybe val
-	dbKeys :: db -> [key]
-
-lookupDB ::
-	(Monad m, DB db key val) =>
-	key -> ReaderT db m (Maybe val)
-lookupDB key = ask >>=
-	return . flip dbLookup key
-
-select ::
-	forall m db val key .
-	(Monad m, DB db key val) =>
-	(val -> Bool)
-	-> ReaderT db m [val]
-select cond = ask >>= \db ->
-	return $
-	filter cond $
-	mapMaybe (dbLookup db) $
-	dbKeys db
-
-class HasKey val key | val -> key where
-	key :: val -> key
-
-instance HasKey Artist ArtistKey where
-	key = artist_name
-instance HasKey Project ProjectKey where
-	key = project_name
-instance HasKey Person PersonKey where
-	key = person_name
-
-instance DB ProjDB ArtistKey Artist where
-	dbLookup = flip lookupArtist
-	dbKeys = allArtists
-
-instance DB ProjDB ProjectKey Project where
-	dbLookup = flip lookupProject
-	dbKeys = allProjects
 
 data ProjDB =
 	ProjDB {
@@ -80,14 +40,28 @@ newtype ProjectKey = ProjectKey { fromProjectKey :: Name }
 newtype PersonKey = PersonKey { fromPersonKey :: Name}
 	deriving( Eq, Ord, Read, Show )
 
-class FromKey a where
-	fromKey :: a -> T.Text
+instance HasKey Artist ArtistKey where
+	getKey = artist_name
+instance HasKey Project ProjectKey where
+	getKey = project_name
+instance HasKey Person PersonKey where
+	getKey = person_name
+
 instance FromKey ArtistKey where
 	fromKey = fromArtistKey
 instance FromKey ProjectKey where
 	fromKey = fromProjectKey
 instance FromKey PersonKey where
 	fromKey = fromPersonKey
+
+instance DB ProjDB ArtistKey Artist where
+	dbLookup = flip lookupArtist
+	dbKeys = allArtists
+
+instance DB ProjDB ProjectKey Project where
+	dbLookup = flip lookupProject
+	dbKeys = allProjects
+
 
 type Name = T.Text
 
@@ -122,6 +96,12 @@ data Artist
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
 
+{-
+instance HasField Artist T.Text where
+	getField (FieldName "artist_name") = return . fromArtistKey . artist_name
+	getField _ = const Nothing
+-}
+
 data Project
 	= Project {
 		project_name :: ProjectKey, -- key
@@ -130,6 +110,16 @@ data Project
 		--project_data :: [WebDocsWebContent]
 	}
 	deriving( Read, Show, Generic, Eq, Ord )
+
+{-
+instance HasField Project T.Text where
+	getField (FieldName "project_name") = return . fromProjectKey . project_name
+	getField _ = const Nothing
+
+instance HasField Project [ArtistKey] where
+	getField (FieldName "project_artist") = return . project_artist
+	getField _ = const Nothing
+-}
 
 data Person
 	= Person {

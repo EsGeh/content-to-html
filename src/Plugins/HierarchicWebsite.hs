@@ -238,7 +238,7 @@ instance FromJSON RequestOrSection where
 				uri <- o .: "uri"
 				mParams <-
 					o.:? "params"
-				return (uri, fromMaybe M.empty mParams)
+				return (uri, M.toList $ fromMaybe M.empty mParams)
 		)
 
 -----------------------------------

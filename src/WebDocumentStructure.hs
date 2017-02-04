@@ -14,7 +14,6 @@ import Types
 
 import Data.Aeson
 import GHC.Generics
-import qualified Data.Map as M
 import Data.Yaml
 import Control.Monad.IO.Class
 import Control.Monad.Except
@@ -70,7 +69,8 @@ data FileResInfo
 	deriving( Show, Read )
 
 type Request = (URI, Params)
-type Params = M.Map T.Text T.Text
+type Params = [(T.Text, T.Text)]
+-- type Params = M.Map T.Text T.Text
 
 newtype ResType = ResType { fromResType :: T.Text }
 	deriving( Eq, Ord, Show, Read )

@@ -10,6 +10,7 @@ module Plugins.ProjDB.ToWebDoc(
 ) where
 
 import Plugins.ProjDB.Types as ProjDB
+import Plugins.ProjDB.DB
 import WebDocumentStructure.Types as WebDocs
 
 import qualified Data.Text as T

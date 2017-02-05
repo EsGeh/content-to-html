@@ -1,4 +1,6 @@
 ## site hierarchy:
+# this file defines the hierarchy of displayable content.
+# this information is used by the website plugin, to render the page
 
 - caption: introduction
   uri: content/0_infos

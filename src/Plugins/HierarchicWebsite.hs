@@ -38,7 +38,8 @@ data Config
 	= Config {
 		config_sharedDirs :: [DirConfig],
 		config_userCSS :: Maybe URI,
-		config_content :: FilePath
+		config_content :: FilePath,
+		config_defaultRoute :: Maybe URI
 	}
 	deriving (Generic, Show, Read)
 
@@ -54,7 +55,7 @@ load configFile =
 	do
 		liftIO $ putStrLn "loading website..."
 		sharedData <-
-			(loadSharedData config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
+			(loadSharedData config_defaultRoute config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
 		contentTree <- loadContent config_content
 		--liftIO $ putStrLn $ prettyRoutes sharedData
 		--liftIO $ putStrLn $ prettyContent contentTree
@@ -119,10 +120,12 @@ type PageRoutes = M.Map URI (SectionTemplate Request)
 type FileRoutes = M.Map URI FileResInfo
 
 loadSharedData ::
+	forall m .
 	(MonadIO m, MonadError String m) =>
-	[DirConfig] -> m Routes
-loadSharedData sharedDirs =
+	Maybe URI -> [DirConfig] -> m Routes
+loadSharedData mDefaultRoute sharedDirs =
 	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
+	(maybe return addDefRoute mDefaultRoute =<<) $
 	fmap combineRoutes $
 	forM sharedDirs $ \DirConfig{..} ->
 		do
@@ -130,6 +133,12 @@ loadSharedData sharedDirs =
 			liftIO $ putStrLn $ concat [ "loading \"", dirConfig_path, "\"..." ]
 			loadFilesInDir `flip` dirConfig_path $
 				defLoadDirInfo dirConfig_uriPrefix dirConfig_path
+	where
+		addDefRoute :: URI -> Routes -> m Routes
+		addDefRoute defRoute routes =
+			do
+				liftIO $ putStrLn $ "default route: " ++ fromURI defRoute
+				addRoute (toURI "") `flip` routes <$> (findPage defRoute routes)
 
 -----------------------------------
 -- create a Routes object:

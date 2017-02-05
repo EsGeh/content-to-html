@@ -1,6 +1,8 @@
-##
-#
-#
+# ----------------------------------
+# config for the website plugin
+# ---------------------------------
+
+# all URIs given here are internal to the website plugin
 
 config_sharedDirs:
   - dirConfig_path: demo/content
@@ -11,3 +13,4 @@ config_sharedDirs:
     dirConfig_uriPrefix: /data # directory name in URI
 config_userCSS: "content/css/style.css" # uri of the user css
 config_content: "demo/content.yaml" # file defining site hierarchy
+config_defaultRoute: "0_infos" # empty url ("/") is mapped to this uri

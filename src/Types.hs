@@ -33,6 +33,11 @@ uriToList =
 	fromURI
 
 uriSplitPrefix uri =
+{-
+	case uriToList uri of
+		(x:xs) -> Just $ (toURI $ x, toURI $ joinPath xs)
+		_ -> Nothing
+-}
 	case uriToList uri of
 		(x:xs) -> (toURI $ x, toURI $ joinPath xs)
 		[] -> (toURI "", toURI "")

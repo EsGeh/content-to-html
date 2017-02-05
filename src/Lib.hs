@@ -89,7 +89,15 @@ runHomepage Config{..} =
 spockRoutes :: RoutesM ()
 spockRoutes =
 	getState >>= \pluginsState ->
-	hookAny GET $ (. uriSplitPrefix . uriFromList . map T.unpack) $ \(uriPref, req) ->
+	hookAny GET $ ( . uriFromList . map T.unpack) $ \fullUri ->
+	let
+		(uriPref, req) =
+			-- redirect empty route to the website plugin"
+			if fullUri == toURI ""
+			then (toURI "content", toURI "")
+			else 
+ 				uriSplitPrefix $ fullUri
+	in
 		-- ((liftIO $ putStrLn $ concat [ "req: ", show fullUri, " parsed as ", show (uriPref, req) ]) >>) $
 		handleErrors $
 		lift params >>= \reqParams ->

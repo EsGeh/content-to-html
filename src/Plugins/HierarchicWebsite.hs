@@ -56,10 +56,8 @@ load configFile =
 		sharedData <-
 			(loadSharedData config_sharedDirs `catchError` \e -> throwError ("error while loading sharedData: " ++ e))
 		contentTree <- loadContent config_content
-		{-
-		liftIO $ putStrLn $ "content tree:" ++ show contentTree
-		liftIO $ putStrLn $ "shared resources:" ++ show sharedData
-		-}
+		--liftIO $ putStrLn $ prettyRoutes sharedData
+		--liftIO $ putStrLn $ prettyContent contentTree
 		return $
 			(plugin,) $
 			RoutesState {
@@ -86,17 +84,12 @@ fillTemplate ::
 	Plugins.RunReqT RoutesState m Section
 fillTemplate = \case
 	SectionEntry (Left (uri',params)) ->
-		let (prefix, uri) = parseReq uri' in
+		let (prefix, uri) = uriSplitPrefix uri' in
 		lift $ Plugins.requestToPluginsInternal prefix (uri,params)
 	SectionEntry (Right info) -> return $ SectionEntry info
 	MainSection info ->
 		fmap MainSection $
 		sectionInfo_mapToContentM `flip` info $ mapM fillTemplate
-
-parseReq :: URI -> (URI, URI)
-parseReq uri =
-	let (prefix, '/':subUri) = span (/='/') $ drop 1 $ (fromURI uri)
-	in (toURI prefix, toURI subUri)
 
 calcNav :: Content -> [NavEntry]
 calcNav content =
@@ -132,8 +125,11 @@ loadSharedData sharedDirs =
 	--((\x -> do{ liftIO $ print x; return x} ) =<<) $
 	fmap combineRoutes $
 	forM sharedDirs $ \DirConfig{..} ->
-		loadFilesInDir `flip` dirConfig_path $
-		defLoadDirInfo dirConfig_uriPrefix dirConfig_path
+		do
+			liftIO $ putStrLn $ "-----------------------------------------"
+			liftIO $ putStrLn $ concat [ "loading \"", dirConfig_path, "\"..." ]
+			loadFilesInDir `flip` dirConfig_path $
+				defLoadDirInfo dirConfig_uriPrefix dirConfig_path
 
 -----------------------------------
 -- create a Routes object:
@@ -158,8 +154,21 @@ loadFilesInDir calcRes dirPath =
 	where
 		calc :: [FilePath] -> m Routes
 		calc paths = 
-			(M.fromList . catMaybes) <$>
-			mapM calcRes paths
+			fmap (M.fromList . catMaybes) $
+			mapM `flip` paths $ \path ->
+				do
+					mRes <- calcRes path
+					case mRes of
+						Nothing -> return ()
+						Just (uri, template) ->
+							liftIO $ putStrLn $ concat $
+							[ fromURI uri, " -> ", dirPath </> path ]
+					return mRes 
+
+prettyTemplate = \case
+	FullPageResource _ -> "FullPageResource"
+	PageResource _ -> "PageResource"
+	FileResource FileResInfo{..} -> concat [ "File \"", fileRes_file, "\"" ]
 
 -----------------------------------
 -- filter/search routes:
@@ -177,10 +186,16 @@ findPage ::
 	(MonadError String m) => URI -> Routes -> m ResourceTemplate
 findPage key routes =
 	let mRes = M.lookup key routes in
-		maybe
-			(throwError $ concat ["could not find \"", fromURI key, "\"!"{-, " possible: ", show $ M.keys content-}])
-			return
-			mRes
+		case mRes of
+			Just res -> return res
+			_ ->
+				throwError $
+				concat $
+				[ "could not find \""
+				, fromURI key
+				, "\"!"
+				, "\npossible: ", show $ M.keys routes
+				]
 
 defLoadDirInfo ::
 	(MonadIO m, MonadError String m) =>
@@ -188,24 +203,24 @@ defLoadDirInfo ::
 defLoadDirInfo uriPrefix dir path =
 	case takeExtension path of
 		".mp3" -> return $ Just $
-			( URI $ "/" </> uriPrefix </> path
+			( toURI $ uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = ResType $ "audio/mpeg" }
 			)
 		".pdf" -> return $ Just $
-			( URI $ "/" </> uriPrefix </> path
+			( toURI $ uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = ResType $ "application/pdf" }
 			)
 		".css" -> return $ Just $
-			( URI $ "/" </> uriPrefix </> path
+			( toURI $ uriPrefix </> path
 			, FileResource $ defResource { fileRes_type = ResType $ "style/css" }
 			)
 		".yaml" ->
 			Just <$>
-			( URI $ "/" </> uriPrefix </> dropExtension path, ) <$>
+			( toURI $ uriPrefix </> dropExtension path, ) <$>
 			PageResource <$>
 			loadYaml (dir </> path)
 		_ -> return $ Just $
-			( URI $ "/" </> uriPrefix </> path
+			( toURI $ uriPrefix </> path
 			, FileResource $ defResource
 			)
 	where

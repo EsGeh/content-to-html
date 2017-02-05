@@ -89,19 +89,14 @@ runHomepage Config{..} =
 spockRoutes :: RoutesM ()
 spockRoutes =
 	getState >>= \pluginsState ->
-	hookAny GET $ \uriParts ->
+	hookAny GET $ (. uriSplitPrefix . uriFromList . map T.unpack) $ \(uriPref, req) ->
+		-- ((liftIO $ putStrLn $ concat [ "req: ", show fullUri, " parsed as ", show (uriPref, req) ]) >>) $
 		handleErrors $
-			-- first, try to redirect the request to plugins:
-			( lift params >>= \reqParams ->
-				case uriParts of
-					(uriPref:req) ->
-						do
-							(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins (toURI $ T.unpack uriPref) (calcRouteKey req, reqParams)
-							sendResource page
-					_ -> return ()
-			)
+		lift params >>= \reqParams ->
+			do
+				(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins uriPref (req, reqParams)
+				sendResource page
 	where
-		calcRouteKey r = toURI (T.unpack $ T.intercalate "/" r)
 		sendResource resource =
 			case resource of
 				FullPageResource page ->

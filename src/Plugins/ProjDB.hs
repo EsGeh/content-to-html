@@ -53,7 +53,7 @@ genSection ::
 	(MonadIO m, MonadError String m) =>
 	Request -> ReadDBT m Section
 genSection r =
-	((liftIO $ putStrLn $ "request: " ++ show r) >>) $
+	-- ((liftIO $ putStrLn $ "request: " ++ show r) >>) $
 	case r of
 		Artists filterExpr ->
 			ToWebDoc.artistsPage =<< (lift $ filterExprToFunc filterExpr)

@@ -105,25 +105,6 @@ requestToPlugins' runReq prefix request =
 		St.put $ M.insert prefix newState plugins
 		return res 
 
-{-
-routeToPlugins ::
-	(MonadIO m, MonadError String m) =>
-	URI -> Request -> St.StateT Plugins m Resource
-routeToPlugins prefix request =
-	St.get >>= \plugins ->
-	do
-		pluginState <-
-			maybe (throwError $ "no plugin with prefix " ++ fromURI prefix) return $
-			M.lookup prefix plugins
-		(res, newState) <-
-			case pluginState of
-				PluginStateCont (plugin, st) ->
-					(\(res,s) -> (res, PluginStateCont (plugin, s))) <$>
-					runPlugin plugin st request
-		St.put $ M.insert prefix newState plugins
-		return res 
--}
-
 -- test plugin:
 
 data TestState = TestState

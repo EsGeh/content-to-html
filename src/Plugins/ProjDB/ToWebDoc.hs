@@ -22,20 +22,26 @@ projectsPage ::
 	(Project -> Bool)
 	-> ReadDBT m WebDocs.Section
 projectsPage filterProjects =
-	WebDocs.mainSection <$>
 	do
 		projects <- select filterProjects
-		mapM projectToSection projects
+		projectPages <- mapM projectToSection projects
+		return $
+			WebDocs.MainSection $ (defSectionInfo projectPages){
+				section_style = defStyleInfo{ style_class = Just "projects" }
+			}
 
 artistsPage ::
 	(Monad m, MonadError String m) =>
 	(Artist -> Bool)
 	-> ReadDBT m WebDocs.Section
 artistsPage filterFunc =
-	WebDocs.mainSection <$>
 	do
 		artists <- select filterFunc
-		mapM artistToSection artists
+		artistPages <- mapM artistToSection artists
+		return $
+			WebDocs.MainSection $ (defSectionInfo artistPages){
+				section_style = defStyleInfo{ style_class = Just "artists" }
+			}
 
 projectToSection ::
 	(Monad m, MonadError String m) =>
@@ -43,8 +49,11 @@ projectToSection ::
 projectToSection Project{..} =
 	do
 		return $
-			mainSectionWithTitle (fromProjectKey project_name) $
-			map (section . projDataToWebContent) project_data
+			WebDocs.MainSection $
+				(defSectionInfo $ map (section . projDataToWebContent) project_data){
+					section_title = Just $ fromProjectKey project_name,
+					section_style = defStyleInfo{ style_class = Just "project" }
+				}
 
 projDataToWebContent :: ProjectData -> WebContent
 projDataToWebContent x =
@@ -60,12 +69,25 @@ artistToSection artist =
 	do
 		projects <-
 			select $ \proj -> artist_name artist `elem` project_artist proj
-		return $
-			mainSectionWithTitle (fromArtistKey $ artist_name artist) $ [
-				mainSectionWithTitle "projects" $ map section [
-					Text $
-					T.intercalate ", " $
-					map (fromProjectKey . project_name) $
-					projects
-				]
-			]
+		case projects of
+			[] ->
+				return $
+					SectionEntry $
+					(defSectionInfo $ Text $ "no more info") {
+						section_title = Just $ fromArtistKey $ artist_name artist,
+						section_style = defStyleInfo{ style_class = Just "artist" }
+					}
+			_ ->
+				return $
+					MainSection $
+					(defSectionInfo $ [
+						mainSectionWithTitle "projects" $ map section [
+							Text $
+							T.intercalate ", " $
+							map (fromProjectKey . project_name) $
+							projects
+						]
+					]){
+						section_title = Just $ fromArtistKey $ artist_name artist,
+						section_style = defStyleInfo{ style_class = Just "artist" }
+					}

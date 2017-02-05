@@ -71,6 +71,6 @@ a {
 	padding: 0;
 	background-color: white;
 }
-.section.depth-1, .section.depth-2 {
+.article, .artists, .projects, .artist, .project {
 	border: 1px solid grey;
 }

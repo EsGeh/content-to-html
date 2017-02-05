@@ -169,11 +169,12 @@ loadFilesInDir calcRes dirPath =
 					mRes <- calcRes path
 					case mRes of
 						Nothing -> return ()
-						Just (uri, template) ->
+						Just (uri, _) ->
 							liftIO $ putStrLn $ concat $
 							[ fromURI uri, " -> ", dirPath </> path ]
 					return mRes 
 
+prettyTemplate :: ResourceGen a -> String
 prettyTemplate = \case
 	FullPageResource _ -> "FullPageResource"
 	PageResource _ -> "PageResource"
@@ -247,7 +248,13 @@ instance FromJSON (SectionTemplate Request) where
 			do
 				title <- x .:? "title"
 				content <- x .: "subsections"
-				return $ MainSection $ SectionInfo title content
+				style <- StyleInfo <$> x .:? "style_class"
+				return $
+					MainSection $
+					(defSectionInfo content){
+						section_title = title,
+						section_style = style
+					}
 		)
 
 newtype RequestOrSection = RequestOrSection { fromRequestOrSection :: Either Request SectionInfo }

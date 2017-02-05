@@ -35,7 +35,7 @@ htmlHeader HeaderInfo{..} title content =
 
 navToHtml :: Nav -> Html ()
 navToHtml =
-	navToHtml' 0
+	navToHtml' (0 :: Int)
 	where
 		navToHtml' depth nav =
 			ul_ [class_ $ T.pack $ "menu " ++ depthAttribute depth] $ mconcat $ map `flip` nav $ \case
@@ -54,14 +54,25 @@ sectionToHtml :: Section -> Html ()
 sectionToHtml = sectionToHtml' 0
 	where
 		sectionToHtml' depth x =
-			div_ [class_ $ T.pack $ "section " ++ depthAttribute depth] $
+			div_ (sectionAttributes depth x) $
 			renderSection depth (sectionTitle x) $
 			eitherSection (contentToHtml . section_content) `flip` x $
 			(mconcat . map (sectionToHtml' $ depth+1) . section_content)
 
+sectionAttributes :: Int -> Section -> [Attribute]
+sectionAttributes depth x =
+	[class_ $ T.intercalate " " $
+		maybe id (\y -> ([y] ++)) (style_class $ sectionStyle x) $
+		[ "section"
+		, T.pack $ depthAttribute depth 
+		]
+	]
+
+depthAttribute :: Int -> String
 depthAttribute depth =
 	"depth-" ++ (show depth)
 
+{-
 mapWithCtxt f x = mapWithCtxt' 0 x
 	where
 		mapWithCtxt' depth x =
@@ -69,6 +80,7 @@ mapWithCtxt f x = mapWithCtxt' 0 x
 				SectionEntry info -> SectionEntry $ f depth x
 				MainSection l ->
 					MainSection $ sectionInfo_mapToContent (map $ mapWithCtxt' (depth+1)) l
+-}
 
 {-
 foldSection :: (a -> [Section] -> a) -> Section -> a
@@ -107,7 +119,7 @@ renderArticle mTitle content =
 		content
 
 renderSection :: Int -> Maybe Title -> Html () -> Html ()
-renderSection depth mTitle content =
+renderSection _ mTitle content =
 	do
 	--section_ [] $ do
 		maybe

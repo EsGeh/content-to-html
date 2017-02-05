@@ -59,9 +59,22 @@ type SectionInfo = SectionInfoGen WebContent
 data SectionInfoGen content
 	= SectionInfo {
 		section_title :: Maybe Title,
-		section_content :: content
+		section_content :: content,
+		section_style :: StyleInfo
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
+
+defSectionInfo :: content -> SectionInfoGen content
+defSectionInfo content = SectionInfo Nothing content defStyleInfo
+
+data StyleInfo
+	= StyleInfo {
+		style_class :: Maybe T.Text
+	}
+	deriving( Show, Read, Eq, Ord, Generic )
+
+defStyleInfo :: StyleInfo
+defStyleInfo = StyleInfo Nothing
 
 instance Functor SectionGen where
 	fmap f = \case
@@ -95,7 +108,8 @@ instance FromJSON SectionInfo where
 		do
 			title <- o .:? "title"
 			content <- o .: "content"
-			return $ SectionInfo title content
+			style <- (StyleInfo) <$> o .:? "style_class"
+			return $ SectionInfo title content style
 
 sectionInfo_mapToContentM ::
 	Monad m =>
@@ -109,13 +123,18 @@ sectionInfo_mapToContent ::
 sectionInfo_mapToContent f = runIdentity . sectionInfo_mapToContentM (return . f)
 
 section :: content -> SectionGen (SectionInfoGen content)
-section = SectionEntry . SectionInfo Nothing
+section content =
+	SectionEntry $ defSectionInfo content
 sectionWithTitle :: T.Text -> content -> SectionGen (SectionInfoGen content)
-sectionWithTitle title = SectionEntry . SectionInfo (Just title)
+sectionWithTitle title content =
+	SectionEntry $ (defSectionInfo content){ section_title = Just title }
+
 mainSection :: [SectionGen info] -> SectionGen info
-mainSection = MainSection . SectionInfo Nothing
+mainSection content =
+	MainSection $ defSectionInfo content
 mainSectionWithTitle :: T.Text -> [SectionGen info] -> SectionGen info
-mainSectionWithTitle title = MainSection . SectionInfo (Just title)
+mainSectionWithTitle title content =
+	MainSection $ (defSectionInfo content){ section_title = Just title }
 
 eitherSection ::
 	(info -> b)
@@ -135,6 +154,15 @@ instance HasTitle (SectionGen (SectionInfoGen content)) where
 	sectionTitle (SectionEntry e) = sectionTitle e
 	sectionTitle (MainSection e) = sectionTitle e
 
+class HasStyle a where
+	sectionStyle :: a -> StyleInfo
+
+instance HasStyle (SectionInfoGen content) where
+	sectionStyle = section_style
+
+instance HasStyle (SectionGen (SectionInfoGen content)) where
+	sectionStyle (SectionEntry e) = sectionStyle e
+	sectionStyle (MainSection e) = sectionStyle e
 
 data WebContent
 	= Text T.Text

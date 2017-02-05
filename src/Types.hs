@@ -23,15 +23,18 @@ toURI =
 			("/" </>) -- uris have to start with "/"!
 			. normalise -- try to transform to a normal form
 
+uriFromList :: [FilePath] -> URI
 uriFromList uri =
 	toURI $ intercalate "/" uri
 
+uriToList :: URI -> [FilePath]
 uriToList =
 	map dropTrailingPathSeparator .
 	splitPath .
 	dropDrive .
 	fromURI
 
+uriSplitPrefix :: URI -> (URI, URI)
 uriSplitPrefix uri =
 {-
 	case uriToList uri of

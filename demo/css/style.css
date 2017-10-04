@@ -7,7 +7,7 @@ h5 { font-size:14px; }
 h6 { font-size:13px; }
 
 body {
-	/* background-color: black; */
+	background-color: black;
 	margin: 0;
 	border: 0;
 	padding: 0;
@@ -71,6 +71,12 @@ a {
 	padding: 0;
 	background-color: white;
 }
-.article, .artists, .projects, .artist, .project {
+.artists, .projects, .artist, .project {
 	border: 1px solid grey;
+	border-radius: 5px;
+}
+
+.article {
+	border: 1px solid grey;
+	box-shadow: 2px 2px 5px grey;
 }

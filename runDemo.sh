@@ -1,4 +1,4 @@
-##
+#!/bin/bash
 
 stack build && stack exec sgHomePage-exe -- \
 	--plugin projDB:projDB:demo/projDB.yaml \

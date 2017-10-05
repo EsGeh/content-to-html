@@ -26,7 +26,7 @@ projectsPage filterProjects =
 		projects <- select filterProjects
 		projectPages <- mapM projectToSection projects
 		return $
-			WebDocs.MainSection $ (defSectionInfo projectPages){
+			WebDocs.SectionNode $ (defSectionInfo projectPages){
 				section_style = defStyleInfo{ style_class = Just "projects" }
 			}
 
@@ -39,7 +39,7 @@ artistsPage filterFunc =
 		artists <- select filterFunc
 		artistPages <- mapM artistToSection artists
 		return $
-			WebDocs.MainSection $ (defSectionInfo artistPages){
+			WebDocs.SectionNode $ (defSectionInfo artistPages){
 				section_style = defStyleInfo{ style_class = Just "artists" }
 			}
 
@@ -49,7 +49,7 @@ projectToSection ::
 projectToSection Project{..} =
 	do
 		return $
-			WebDocs.MainSection $
+			WebDocs.SectionNode $
 				(defSectionInfo $ map (section . projDataToWebContent) project_data){
 					section_title = Just $ fromProjectKey project_name,
 					section_style = defStyleInfo{ style_class = Just "project" }
@@ -79,7 +79,7 @@ artistToSection artist =
 					}
 			_ ->
 				return $
-					MainSection $
+					SectionNode $
 					(defSectionInfo $ [
 						mainSectionWithTitle "projects" $ map section [
 							Text $

@@ -12,7 +12,6 @@ import Plugins.ProjDB.Types
 import Plugins.ProjDB.DB
 import qualified Types.Resource as Resource
 import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
---import Types.WebDocument hiding( Request )
 import qualified Types.WebDocument as WebDoc
 import qualified Plugins
 import Types.URI

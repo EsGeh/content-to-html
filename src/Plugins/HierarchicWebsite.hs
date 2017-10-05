@@ -90,8 +90,8 @@ fillTemplate = \case
 		let (prefix, uri) = uriSplitPrefix uri' in
 		lift $ Plugins.requestToPluginsInternal prefix (uri,params)
 	SectionEntry (Right info) -> return $ SectionEntry info
-	MainSection info ->
-		fmap MainSection $
+	SectionNode info ->
+		fmap SectionNode $
 		sectionInfo_mapToContentM `flip` info $ mapM fillTemplate
 
 calcNav :: Content -> [NavEntry]
@@ -252,7 +252,7 @@ instance FromJSON (SectionTemplate Request) where
 				content <- x .: "subsections"
 				style <- StyleInfo <$> x .:? "style_class"
 				return $
-					MainSection $
+					SectionNode $
 					(defSectionInfo content){
 						section_title = title,
 						section_style = style

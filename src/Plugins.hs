@@ -16,11 +16,14 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 
 
+-- |a "plugin" is something that can answer requests by returning a '.Resource'
 data Plugin state
 	= Plugin {
+		-- |answering an external request
 		plugin_answerReq ::
 			forall m . (MonadIO m, MonadError String m) =>
 			Request -> RunReqT state m Resource,
+		-- |answering a request from an other plugin
 		plugin_answerInternalReq ::
 			forall m . (MonadIO m, MonadError String m) =>
 			Request -> RunReqT state m Section,
@@ -39,6 +42,7 @@ defPlugin =
 type RunReqT state m a =
 	St.StateT state (St.StateT Plugins m) a
 
+-- |create a plugin and a corresponding initial state
 type Loader state = forall m . (MonadIO m, MonadError String m) => FilePath -> m (Plugin state, state)
 
 data LoaderCont = forall state . LoaderCont (Loader state)
@@ -106,7 +110,7 @@ requestToPlugins' runReq prefix request =
 		St.put $ M.insert prefix newState plugins
 		return res 
 
--- test plugin:
+-- example plugin:
 
 data TestState = TestState
 

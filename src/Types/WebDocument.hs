@@ -48,16 +48,22 @@ data Link
 
 -- |a section in the document
 type Section = SectionGen SectionInfo
+-- |a tree of sections in which the leafs can optionally be "variables" of type var
 type SectionTemplate var = SectionGen (Either var SectionInfo)
 
+-- |A node in a tree of sections, either primitive or complex...
+-- The type parameter contains the information describing the leaf nodes
 data SectionGen sectionInfo
-	= SectionEntry sectionInfo
-	| MainSection (MainSectionInfo sectionInfo)
+	= SectionEntry sectionInfo -- ^ primitive (leaf)
+	| SectionNode (SectionNodeInfo sectionInfo) -- ^ complex section (inner node)
 	deriving( Show, Read, Eq, Ord, Generic )
 
-type MainSectionInfo sectionInfo = SectionInfoGen [SectionGen sectionInfo]
+-- |a complex section consisting of other sections (inner node in the doc tree)
+type SectionNodeInfo sectionInfo = SectionInfoGen [SectionGen sectionInfo]
+-- |a primitive section (leaf of the doc tree)
 type SectionInfo = SectionInfoGen WebContent
 
+-- information for a "primitive" section containing additional info of type 'content'
 data SectionInfoGen content
 	= SectionInfo {
 		section_title :: Maybe Title,
@@ -81,13 +87,13 @@ defStyleInfo = StyleInfo Nothing
 instance Functor SectionGen where
 	fmap f = \case
 		SectionEntry x -> SectionEntry $ f x
-		MainSection l -> MainSection $ sectionInfo_mapToContent (map $ fmap f) l
+		SectionNode l -> SectionNode $ sectionInfo_mapToContent (map $ fmap f) l
 
 {-
 instance Foldable SectionGen where
 	foldMap toM = \case
 		SectionEntry info -> toM info
-		MainSection info ->
+		SectionNode info ->
 -}
 
 {-
@@ -95,9 +101,9 @@ instance FromJSON Section where
 	parseJSON = withObject "section" $ \o ->
 		(SectionEntry <$> parseJSON (Object o))
 		<|>
-		(MainSection <$> parseJSON (Object o))
+		(SectionNode <$> parseJSON (Object o))
 
-instance FromJSON (MainSectionInfo SectionInfo) where
+instance FromJSON (SectionNodeInfo SectionInfo) where
 	parseJSON = withObject "container section info" $ \o ->
 		do
 			title <- o .: "title"
@@ -133,18 +139,18 @@ sectionWithTitle title content =
 
 mainSection :: [SectionGen info] -> SectionGen info
 mainSection content =
-	MainSection $ defSectionInfo content
+	SectionNode $ defSectionInfo content
 mainSectionWithTitle :: T.Text -> [SectionGen info] -> SectionGen info
 mainSectionWithTitle title content =
-	MainSection $ (defSectionInfo content){ section_title = Just title }
+	SectionNode $ (defSectionInfo content){ section_title = Just title }
 
 eitherSection ::
 	(info -> b)
-	-> (MainSectionInfo info -> b)
+	-> (SectionNodeInfo info -> b)
 	-> SectionGen info -> b
 eitherSection l r = \case
 	SectionEntry e -> l e
-	MainSection e -> r e
+	SectionNode e -> r e
 
 class HasTitle a where
 	sectionTitle :: a -> Maybe Title
@@ -154,7 +160,7 @@ instance HasTitle (SectionInfoGen content) where
 
 instance HasTitle (SectionGen (SectionInfoGen content)) where
 	sectionTitle (SectionEntry e) = sectionTitle e
-	sectionTitle (MainSection e) = sectionTitle e
+	sectionTitle (SectionNode e) = sectionTitle e
 
 class HasStyle a where
 	sectionStyle :: a -> StyleInfo
@@ -164,7 +170,7 @@ instance HasStyle (SectionInfoGen content) where
 
 instance HasStyle (SectionGen (SectionInfoGen content)) where
 	sectionStyle (SectionEntry e) = sectionStyle e
-	sectionStyle (MainSection e) = sectionStyle e
+	sectionStyle (SectionNode e) = sectionStyle e
 
 data WebContent
 	= Text T.Text

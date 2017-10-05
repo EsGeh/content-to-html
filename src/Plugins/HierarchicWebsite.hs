@@ -8,12 +8,13 @@
 {-# LANGUAGE LambdaCase #-}
 module Plugins.HierarchicWebsite where
 
-import WebDocumentStructure
+import Types.Resource
+import Types.WebDocument
+import Plugins.HierarchicWebsite.Types
 import Plugins
-import Types
+import Types.URI
+import Utils.Yaml
 
-import Data.Yaml
-import Data.Aeson
 import GHC.Generics
 import Control.Monad.IO.Class
 import Control.Monad.Except
@@ -25,6 +26,7 @@ import System.FilePath.Posix
 import Data.List
 import Data.Maybe
 import Control.Applicative
+
 
 data RoutesState = 
 	RoutesState {

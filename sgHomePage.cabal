@@ -17,15 +17,14 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
   other-modules:
-    Utils,
-    Types,
+    Types.URI,
+    Utils.Yaml, Utils.JSONOptions,
     Plugins,
     Plugins.ProjDB,
     Plugins.ProjDB.ToWebDoc, Plugins.ProjDB.Types, Plugins.ProjDB.DB,
-    Plugins.HierarchicWebsite,
-    WebDocumentStructure,
-    WebDocumentStructure.Types, WebDocumentStructure.ToHtml,
-    WebDocumentStructure.JSONOptions
+    Plugins.HierarchicWebsite, Plugins.HierarchicWebsite.Types,
+    Types.Resource,
+    Types.WebDocument, Types.WebDocument.ToHtml
   build-depends:
     base >= 4.7 && < 5,
     Spock == 0.10.*,

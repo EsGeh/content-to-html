@@ -11,7 +11,7 @@ module Plugins.ProjDB.ToWebDoc(
 
 import Plugins.ProjDB.Types as ProjDB
 import Plugins.ProjDB.DB
-import WebDocumentStructure.Types as WebDocs
+import Types.WebDocument as WebDocs
 
 import qualified Data.Text as T
 import Control.Monad.Except

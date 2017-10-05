@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-module WebDocumentStructure.ToHtml(
-	module WebDocumentStructure.ToHtml,
+module Types.WebDocument.ToHtml(
+	module Types.WebDocument.ToHtml,
 	Html
 ) where
 
-import WebDocumentStructure.Types
-import Types
+import Types.WebDocument
+import Types.URI
 
 import Lucid
 import qualified Data.Text as T

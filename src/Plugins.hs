@@ -5,8 +5,9 @@
 {-# LANGUAGE TupleSections #-}
 module Plugins where
 
-import WebDocumentStructure
-import Types
+import Types.Resource
+import Types.WebDocument
+import Types.URI
 
 import Control.Monad.IO.Class
 import Control.Monad.Except

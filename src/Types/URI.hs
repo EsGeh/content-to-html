@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Types(
+module Types.URI(
 	URI(),
 	toURI, fromURI,
 	uriFromList, uriToList,

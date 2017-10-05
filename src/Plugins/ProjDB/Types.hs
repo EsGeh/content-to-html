@@ -11,8 +11,8 @@
 module Plugins.ProjDB.Types where
 
 import Plugins.ProjDB.DB
-import WebDocumentStructure.JSONOptions
-import Types
+import Types.URI
+import Utils.JSONOptions
 
 import Data.Aeson.TH
 import Data.Aeson

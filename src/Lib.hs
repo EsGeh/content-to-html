@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 module Lib(
 	Config(..),
 	PluginsConfig,
@@ -17,8 +16,9 @@ module Lib(
 import qualified Plugins
 import qualified Plugins.HierarchicWebsite as Site
 import qualified Plugins.ProjDB as ProjDB
-import WebDocumentStructure --( URI, toURI, fromURI )
-import Types
+import Types.Resource
+import Types.WebDocument.ToHtml
+import Types.URI
 
 import qualified Lucid
 

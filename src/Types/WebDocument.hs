@@ -5,18 +5,19 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-module WebDocumentStructure.Types where
+module Types.WebDocument where
 
-import WebDocumentStructure.JSONOptions
-import Types
+import Utils.JSONOptions
+import Types.URI
+import Utils.Yaml
 
 import qualified Data.Text as T
 import Data.Aeson.TH
-import Data.Aeson
 import GHC.Generics
 import Control.Monad.Identity
 
 
+-- | hierarchical html-document-like structure
 data PageWithNav
 	= PageWithNav {
 		pageWithNav_nav :: Nav,
@@ -45,6 +46,7 @@ data Link
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
+-- |a section in the document
 type Section = SectionGen SectionInfo
 type SectionTemplate var = SectionGen (Either var SectionInfo)
 

@@ -10,11 +10,12 @@ module Plugins.ProjDB(
 
 import Plugins.ProjDB.Types
 import Plugins.ProjDB.DB
+import qualified Types.Resource as Resource
 import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
-import WebDocumentStructure hiding( Request )
-import qualified WebDocumentStructure as WebDoc
+--import Types.WebDocument hiding( Request )
+import qualified Types.WebDocument as WebDoc
 import qualified Plugins
-import Types
+import Types.URI
 
 import Data.Yaml
 import Control.Monad.State
@@ -51,7 +52,7 @@ data Filter
 
 genSection ::
 	(MonadIO m, MonadError String m) =>
-	Request -> ReadDBT m Section
+	Request -> ReadDBT m WebDoc.Section
 genSection r =
 	-- ((liftIO $ putStrLn $ "request: " ++ show r) >>) $
 	case r of
@@ -62,7 +63,7 @@ genSection r =
 
 parseRequest ::
 	(MonadIO m, MonadError String m) =>
-	WebDoc.Request -> m Request
+	Resource.Request -> m Request
 parseRequest req@(uri, params)
 	| uri == toURI "artists" = Artists <$> parseFilterExpr params
 	| uri == toURI "projects" = Projects <$> parseFilterExpr params
@@ -71,7 +72,7 @@ parseRequest req@(uri, params)
 
 parseFilterExpr ::
 	(MonadIO m, MonadError String m) =>
-	Params -> m Filter
+	Resource.Params -> m Filter
 parseFilterExpr = f . sortParams
 	where
 		f params =

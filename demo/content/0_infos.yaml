@@ -3,4 +3,4 @@ subsections:
   - title: introduction
     content:
       text: bla bla bla bla
-style_class: "article"
+attributes: {"class": "article"}

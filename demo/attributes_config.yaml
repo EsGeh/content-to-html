@@ -1,0 +1,35 @@
+# ----------------------------------
+# html attributes config
+# ---------------------------------
+
+# all URIs given here are internal to the website plugin
+
+menuSection: {"class": "menu-section"}
+mainSection: {"class": "main-section"}
+menuClasses:
+  menu:
+    - {"class": "menu depth-1"}
+    - {"class": "menu depth-2" }
+    - {"class": "menu depth-3" }
+    - {"class": "menu depth-4" }
+  entryClasses:
+    - {"class": "menuentry depth-1" }
+    - {"class": "menuentry depth-2" }
+    - {"class": "menuentry depth-3" }
+    - {"class": "menuentry depth-4" }
+  link:
+    - {"class": "menulink" }
+  categoryClasses:
+     - {"class": "menucategory depth-1" }
+     - {"class": "menucategory depth-2" }
+     - {"class": "menucategory depth-3" }
+     - {"class": "menucategory depth-4" }
+  categoryLink:
+     - {"class": "categorylink" }
+sectionHeading:
+  - {}
+section:
+  - {"class": "section depth-1" }
+  - {"class": "section depth-2" }
+  - {"class": "section depth-3" }
+  - {"class": "section depth-4" }

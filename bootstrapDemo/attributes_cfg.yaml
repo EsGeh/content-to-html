@@ -1,0 +1,25 @@
+# ----------------------------------
+# html attributes config
+# ---------------------------------
+
+menuSection: {"class": "navbar navbar-inverse navbar-fixed-top container-fluid"}
+mainSection: {"class": "container"}
+menuClasses:
+  menu:
+    - {"class": "nav navbar-nav"}
+    - {"class": "dropdown-menu" }
+  entryClasses:
+    - {"class": "" }
+  link:
+    - {"class": "" }
+  categoryClasses:
+    - {"class": "dropdown" }
+  categoryLink:
+    - {"class": "dropdown-toggle page-scroll", "data-toggle": "dropdown", "href": "#" }
+sectionHeading:
+  - {}
+section:
+  - {"class": "section depth-1" }
+  - {"class": "section depth-2" }
+  - {"class": "section depth-3" }
+  - {"class": "section depth-4" }

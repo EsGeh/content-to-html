@@ -6,10 +6,8 @@ import Data.Char
 
 jsonOptions :: Options
 jsonOptions = defaultOptions{
-{-
 	fieldLabelModifier =
 		stripPrefix,
--}
 	constructorTagModifier =
 		map toLower,
 		--stripPrefix

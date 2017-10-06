@@ -13,8 +13,10 @@ import Utils.Yaml
 
 import qualified Data.Text as T
 import Data.Aeson.TH
+import qualified Data.Map as M
 import GHC.Generics
 import Control.Monad.Identity
+import Data.Maybe
 
 
 -- | hierarchical html-document-like structure
@@ -30,7 +32,8 @@ type Nav = [NavEntry]
 
 data HeaderInfo
 	= HeaderInfo {
-		headerInfo_userCss :: Maybe URI
+		headerInfo_userCss :: [URI],
+		headerInfo_addText :: T.Text
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
@@ -45,6 +48,14 @@ data Link
 		link_dest :: URI
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
+
+type Attributes = M.Map T.Text T.Text
+
+attributes_empty :: Attributes
+attributes_empty = M.empty
+
+attributes_join :: Attributes -> Attributes -> Attributes
+attributes_join = M.unionWith $ \x y -> T.intercalate " " [x, y]
 
 -- |a section in the document
 type Section = SectionGen SectionInfo
@@ -68,21 +79,23 @@ data SectionInfoGen content
 	= SectionInfo {
 		section_title :: Maybe Title,
 		section_content :: content,
-		section_style :: StyleInfo
+		section_attributes :: Attributes
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
 defSectionInfo :: content -> SectionInfoGen content
-defSectionInfo content = SectionInfo Nothing content defStyleInfo
+defSectionInfo content = SectionInfo Nothing content attributes_empty
 
+{-
 data StyleInfo
 	= StyleInfo {
-		style_class :: Maybe T.Text
+		style_class :: Attributes
 	}
 	deriving( Show, Read, Eq, Ord, Generic )
 
 defStyleInfo :: StyleInfo
-defStyleInfo = StyleInfo Nothing
+defStyleInfo = StyleInfo attributes_empty
+-}
 
 instance Functor SectionGen where
 	fmap f = \case
@@ -116,8 +129,10 @@ instance FromJSON SectionInfo where
 		do
 			title <- o .:? "title"
 			content <- o .: "content"
-			style <- (StyleInfo) <$> o .:? "style_class"
-			return $ SectionInfo title content style
+			props <-
+				(fromMaybe attributes_empty) <$> o .:? "attributes"
+			return $ SectionInfo title content props
+			--style <- (StyleInfo) <$> o .:? "style_class"
 
 sectionInfo_mapToContentM ::
 	Monad m =>
@@ -162,15 +177,15 @@ instance HasTitle (SectionGen (SectionInfoGen content)) where
 	sectionTitle (SectionEntry e) = sectionTitle e
 	sectionTitle (SectionNode e) = sectionTitle e
 
-class HasStyle a where
-	sectionStyle :: a -> StyleInfo
+class HasAttributes a where
+	getAttributes :: a -> Attributes
 
-instance HasStyle (SectionInfoGen content) where
-	sectionStyle = section_style
+instance HasAttributes (SectionInfoGen content) where
+	getAttributes = section_attributes
 
-instance HasStyle (SectionGen (SectionInfoGen content)) where
-	sectionStyle (SectionEntry e) = sectionStyle e
-	sectionStyle (SectionNode e) = sectionStyle e
+instance HasAttributes (SectionGen (SectionInfoGen content)) where
+	getAttributes (SectionEntry e) = getAttributes e
+	getAttributes (SectionNode e) = getAttributes e
 
 data WebContent
 	= Text T.Text
@@ -186,8 +201,7 @@ data DownloadInfo
 	}
 	deriving( Show, Read, Eq, Ord, Generic  )
 
-type Title = T.Text
-
+type Title = T.Text 
 instance FromJSON DownloadInfo where
 	parseJSON (Object x) =
 		DownloadInfo <$>

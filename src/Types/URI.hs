@@ -6,7 +6,8 @@ module Types.URI(
 	uriSplitPrefix,
 ) where
 
-import Data.Aeson
+import Utils.Yaml
+--import Data.Aeson
 import System.FilePath.Posix
 import GHC.Generics
 import Data.List

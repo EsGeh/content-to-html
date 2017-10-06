@@ -1,20 +1,46 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RecordWildCards #-}
 module GetConfig(
 	getConfig
 ) where
 
-import Lib
+import qualified Lib
 
 import Options.Applicative
+-- import Control.Exception.Base
 import qualified Data.Map as M
 import Control.Monad
+import Control.Monad.Except
+import System.Exit
 --import qualified Data.Text as T
 
 
-getConfig :: IO Config
-getConfig =
-	execParser parserInfo
+data Config
+	= Config {
+		config_port :: Int,
+		config_pluginsConfig :: Lib.PluginsConfig,
+		config_attributesConfig :: FilePath
+	}
+	deriving (Show, Read)
 
+
+getConfig :: IO Lib.Config
+getConfig =
+	toLibConfig =<< execParser parserInfo
+
+toLibConfig ::
+	Config -> IO Lib.Config
+toLibConfig Config{..} =
+	do
+		attributesCfg <-
+			(either die return =<< ) $
+			runExceptT $
+			Lib.loadAttributesConfig config_attributesConfig
+		return $ Lib.Config{
+			Lib.config_port = config_port,
+			Lib.config_pluginsConfig = config_pluginsConfig,
+			Lib.config_attributesConfig = attributesCfg
+		}
 
 parserInfo :: ParserInfo Config
 parserInfo =
@@ -28,74 +54,27 @@ parseConfig =
 			long "port" <> short 'p' <> metavar "PORT"
 				<> help "listen on PORT"
 		)
-		-- <*> parseSharedDirsConfig
 		<*> parsePluginsCfg
-		-- <*> parseProjDBConfig
-		{-
-		<*> ( option readUserCss $ value Nothing <>
-			long "user_css" <> metavar "USER_CSS"
-				<> help "user defined css to be included"
-		)
-		<*> (option str $
-			long "content" <> metavar "CONTENT_TREE"
-			<> help "file defining the website hierarchy"
-		)
-	where
-		readUserCss = Just <$> str
-	-}
+		<*> (option str $ value "css_config.yaml" <> long "css-config" <> short 'c' <> help "the css config file")
 
-parsePluginsCfg :: Parser PluginsConfig
+parsePluginsCfg :: Parser Lib.PluginsConfig
 parsePluginsCfg =
 	M.fromList <$>
 	many (option readParam $ long "plugin")
 	where
-		readParam :: ReadM (String, PluginConfig)
+		readParam :: ReadM (String, Lib.PluginConfig)
 		readParam = str >>= \x ->
 			case splitAtColon2 x of
 				(plugin,mUri, mConfigFile) ->
 					do
-						when (not $ plugin `elem` pluginNames) $ readerError $ "unknown plugin: " ++ x
+						when (not $ plugin `elem` Lib.pluginNames) $ readerError $ "unknown plugin: " ++ x
 						case (mUri, mConfigFile) of
 							(Just uri, Just configFile) ->
-								return $ (plugin,) $ PluginConfig {
-									plugin_uri = toURI uri,
-									plugin_configFile = configFile
+								return $ (plugin,) $ Lib.PluginConfig {
+									Lib.plugin_uri = Lib.toURI uri,
+									Lib.plugin_configFile = configFile
 								}
 							_ -> readerError "error parsin plugin parameters"
-
-{-
-	many $
-		PluginConfig <$>
-			(option str $
--}
-
-{-
-parseProjDBConfig :: Parser ProjDBConfig
-parseProjDBConfig =
-	mlConfig <$>
-		( option str $ value "demo/projDB.yaml" <>
-			long "projDB" <> metavar "PROJ_DB_FILE"
-				<> help "file containing projects data"
-		)
--}
-
-{-
-parseSharedDirsConfig :: Parser [DirConfig]
-parseSharedDirsConfig =
-		many $ option readOptionParam $
-			long "data" <> metavar "DATA_DIR[:URL_PREFIX]"
-				<> help "directory with data to be shared optional followed by a colon and a url prefix"
-	where
-		readOptionParam :: ReadM DirConfig
-		readOptionParam = fmap `flip` str $ \x ->
-			case splitAtColon x of
-				(path, Nothing) -> defDirConfig path
-				(path, Just uriPrefix) ->
-					DirConfig {
-						dirConfig_path = path,
-						dirConfig_uriPrefix = uriPrefix
-					}
--}
 
 splitAtColon2 :: String -> (String, Maybe String, Maybe String)
 splitAtColon2 s =

@@ -26,20 +26,23 @@ import System.FilePath.Posix
 import Data.List
 import Data.Maybe
 import Control.Applicative
+import qualified Data.Text as T
 
 
 data RoutesState = 
 	RoutesState {
 		content :: Content,
 		routes :: Routes,
-		userCss :: Maybe URI
+		userCss :: [URI],
+		addToHeader :: T.Text
 	}
 	deriving( Show, Read )
 
 data Config
 	= Config {
 		config_sharedDirs :: [DirConfig],
-		config_userCSS :: Maybe URI,
+		config_userCSS :: [URI],
+		config_addToHeader :: T.Text,
 		config_content :: FilePath,
 		config_defaultRoute :: Maybe URI
 	}
@@ -66,7 +69,8 @@ load configFile =
 			RoutesState {
 				content = contentTree,
 				routes = sharedData,
-				userCss = config_userCSS
+				userCss = config_userCSS,
+				addToHeader = config_addToHeader
 			}
 
 answer_req ::
@@ -76,7 +80,7 @@ answer_req (resKey,_) =
 	get >>= \RoutesState{..} ->
 		findPage resKey routes >>= \case
 			PageResource x ->
-				fmap (FullPageResource . (PageWithNav (calcNav content) `flip` (HeaderInfo userCss))) $
+				fmap (FullPageResource . (PageWithNav (calcNav content) `flip` (HeaderInfo userCss addToHeader))) $
 				fillTemplate x
 			FullPageResource res -> return $ FullPageResource $ res
 			FileResource res -> return $ FileResource $ res
@@ -250,12 +254,13 @@ instance FromJSON (SectionTemplate Request) where
 			do
 				title <- x .:? "title"
 				content <- x .: "subsections"
-				style <- StyleInfo <$> x .:? "style_class"
+				props <-
+					fromMaybe attributes_empty <$> x .:? "attributes"
 				return $
 					SectionNode $
 					(defSectionInfo content){
 						section_title = title,
-						section_style = style
+						section_attributes = props
 					}
 		)
 

@@ -1,5 +1,5 @@
 title: "chapter 2.1"
-style_class: "article"
+attributes: {"class": "article"}
 subsections:
   - content:
       text: bla bla bla

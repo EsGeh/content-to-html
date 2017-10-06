@@ -13,6 +13,7 @@ import Plugins.ProjDB.Types as ProjDB
 import Plugins.ProjDB.DB
 import Types.WebDocument as WebDocs
 
+import qualified Data.Map as M
 import qualified Data.Text as T
 import Control.Monad.Except
 
@@ -27,7 +28,7 @@ projectsPage filterProjects =
 		projectPages <- mapM projectToSection projects
 		return $
 			WebDocs.SectionNode $ (defSectionInfo projectPages){
-				section_style = defStyleInfo{ style_class = Just "projects" }
+				section_attributes = M.fromList [("class", "projects")]
 			}
 
 artistsPage ::
@@ -40,7 +41,7 @@ artistsPage filterFunc =
 		artistPages <- mapM artistToSection artists
 		return $
 			WebDocs.SectionNode $ (defSectionInfo artistPages){
-				section_style = defStyleInfo{ style_class = Just "artists" }
+				section_attributes = M.fromList [("class", "artists")]
 			}
 
 projectToSection ::
@@ -52,7 +53,7 @@ projectToSection Project{..} =
 			WebDocs.SectionNode $
 				(defSectionInfo $ map (section . projDataToWebContent) project_data){
 					section_title = Just $ fromProjectKey project_name,
-					section_style = defStyleInfo{ style_class = Just "project" }
+					section_attributes = M.fromList [("class", "project")]
 				}
 
 projDataToWebContent :: ProjectData -> WebContent
@@ -75,7 +76,7 @@ artistToSection artist =
 					SectionEntry $
 					(defSectionInfo $ Text $ "no more info") {
 						section_title = Just $ fromArtistKey $ artist_name artist,
-						section_style = defStyleInfo{ style_class = Just "artist" }
+						section_attributes = M.fromList [("class", "artist")]
 					}
 			_ ->
 				return $
@@ -89,5 +90,5 @@ artistToSection artist =
 						]
 					]){
 						section_title = Just $ fromArtistKey $ artist_name artist,
-						section_style = defStyleInfo{ style_class = Just "artist" }
+						section_attributes = M.fromList [("class", "artist")]
 					}

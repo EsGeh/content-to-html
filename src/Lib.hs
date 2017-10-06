@@ -10,7 +10,8 @@ module Lib(
 	--DirConfig(..), defDirConfig,
 	runHomepage,
 	URI, toURI, fromURI,
-	Plugins.PluginName
+	Plugins.PluginName,
+	loadAttributesConfig
 ) where
 
 import qualified Plugins
@@ -18,6 +19,7 @@ import qualified Plugins.HierarchicWebsite as Site
 import qualified Plugins.ProjDB as ProjDB
 import Types.Resource
 import Types.WebDocument.ToHtml
+import Types.WebDocument.AttributesConfig
 import Types.URI
 
 import qualified Lucid
@@ -44,7 +46,8 @@ plugins =
 data Config
 	= Config {
 		config_port :: Int,
-		config_pluginsConfig :: PluginsConfig
+		config_pluginsConfig :: PluginsConfig,
+		config_attributesConfig :: AttributesCfg
 	}
 	deriving (Show, Read)
 
@@ -78,7 +81,7 @@ runHomepage Config{..} =
 		pluginsState <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
 		liftIO $ runSpock config_port $
 				spock (spockCfg $ pluginsState) $
-				spockRoutes
+				spockRoutes config_attributesConfig
 	where
 		spockCfg initState' =
 			defaultSpockCfg () PCNoDatabase initState'
@@ -86,8 +89,8 @@ runHomepage Config{..} =
 			runExceptT x
 			>>= either putStrLn return
 
-spockRoutes :: RoutesM ()
-spockRoutes =
+spockRoutes :: AttributesCfg -> RoutesM ()
+spockRoutes attributesConfig =
 	getState >>= \pluginsState ->
 	hookAny GET $ ( . uriFromList . map T.unpack) $ \fullUri ->
 	let
@@ -103,9 +106,9 @@ spockRoutes =
 		sendResource resource =
 			case resource of
 				FullPageResource page ->
-					(lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml) page
+					(lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig) page
 				PageResource page ->
-					(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml) page
+					(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
 				FileResource FileResInfo{..} ->
 					lift $ file (fromResType $ fileRes_type) $ fileRes_file
 

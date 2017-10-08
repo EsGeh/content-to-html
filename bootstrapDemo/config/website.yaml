@@ -13,13 +13,16 @@ config_sharedDirs:
     dirConfig_uriPrefix: /css # directory name in URI
   - dirConfig_path: bootstrapDemo/js
     dirConfig_uriPrefix: /js # directory name in URI
-config_userCSS: ["content/css/bootstrap.min.css"] # uri of the user css
+config_userCSS:
+  - "content/css/bootstrap.min.css"
+  - "content/css/style.css"
 config_addToHeader: |
+  <!-- user defined additions to "/html/head" -->
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
   <style>
     body { padding-top: 70px; }
   </style>
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
   <script src="/content/js/bootstrap.js"></script>
-config_content: "demo/content.yaml" # file defining site hierarchy
+config_content: "demo/config/content.yaml" # file defining site hierarchy
 config_defaultRoute: "0_infos" # empty url ("/") is mapped to this uri

@@ -10,14 +10,16 @@ module Lib(
 	--DirConfig(..), defDirConfig,
 	runHomepage,
 	URI, toURI, fromURI,
-	Plugins.PluginName,
+	PluginName,
 	loadAttributesConfig
 ) where
 
 import qualified Plugins
 import qualified Plugins.HierarchicWebsite as Site
 import qualified Plugins.ProjDB as ProjDB
+import qualified Plugins.Form as Form
 import Types.Resource
+-- import qualified Types.WebDocument as WebDoc
 import Types.WebDocument.ToHtml
 import Types.WebDocument.AttributesConfig
 import Types.URI
@@ -33,15 +35,18 @@ import qualified Data.Text.Lazy as LT
 import Data.Maybe
 
 
-pluginNames :: [String]
+pluginNames :: [PluginName]
 pluginNames = M.keys plugins
 
-plugins :: M.Map Plugins.PluginName Plugins.LoaderCont
+plugins :: M.Map PluginName Plugins.LoaderCont
 plugins =
 	M.fromList $
 	[ ("projDB", Plugins.LoaderCont $ ProjDB.load)
 	, ("website", Plugins.LoaderCont $ Site.load)
+	, ("form", Plugins.LoaderCont $ Form.load)
 	]
+
+type PluginName = String
 
 data Config
 	= Config {
@@ -52,7 +57,7 @@ data Config
 	deriving (Show, Read)
 
 type PluginsConfig =
-	M.Map Plugins.PluginName PluginConfig
+	M.Map PluginName PluginConfig
 
 data PluginConfig = 
 	PluginConfig {
@@ -71,20 +76,27 @@ pluginsLoadParams pluginsCfg =
 type RoutesM = SpockM DBConn Session GlobalState
 
 type DBConn = ()
-type Session = ()
+data Session
+	= Session {
+		session_lastViewReq :: Request
+	}
 type GlobalState = Plugins.Plugins
+
 
 runHomepage :: Config -> IO ()
 runHomepage Config{..} =
 	handleErrors' $
 	do
-		pluginsState <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
+		plugins <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
+		let initState = plugins
 		liftIO $ runSpock config_port $
-				spock (spockCfg $ pluginsState) $
+				spock (spockCfg $ initState) $
 				spockRoutes config_attributesConfig
 	where
 		spockCfg initState' =
-			defaultSpockCfg () PCNoDatabase initState'
+			defaultSpockCfg sessionInit PCNoDatabase initState'
+		sessionInit =
+			Session $ (toURI "undefined", [])
 		handleErrors' x =
 			runExceptT x
 			>>= either putStrLn return
@@ -100,17 +112,32 @@ spockRoutes attributesConfig =
 		handleErrors $
 		lift params >>= \reqParams ->
 			do
-				(page, _) <- runStateT `flip` pluginsState $ Plugins.requestToPlugins uriPref (req, reqParams)
-				sendResource page
-	where
-		sendResource resource =
-			case resource of
-				FullPageResource page ->
-					(lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig) page
-				PageResource page ->
-					(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
-				FileResource FileResInfo{..} ->
-					lift $ file (fromResType $ fileRes_type) $ fileRes_file
+				(mNewPage, _) <-
+					runStateT `flip` pluginsState $
+					Plugins.requestToPlugins uriPref (req, reqParams)
+				case mNewPage of
+					Just newPage ->
+						sendResource attributesConfig (fullUri, reqParams) newPage
+					Nothing ->
+						lift $
+						readSession >>= \session ->
+							redirect $ T.pack $ fromURI $ fst $ session_lastViewReq session
+
+sendResource ::
+	AttributesCfg
+	-> Request
+	-> Resource
+	-> ExceptT String (ActionCtxT ctx (WebStateM conn Session st)) b
+sendResource attributesConfig request resource =
+	case resource of
+		FullPageResource page ->
+			do
+				lift $ writeSession $ Session request
+				lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig $ page
+		PageResource page ->
+			(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
+		FileResource FileResInfo{..} ->
+			lift $ file (fromResType $ fileRes_type) $ fileRes_file
 
 handleErrors ::
 	MonadIO m =>

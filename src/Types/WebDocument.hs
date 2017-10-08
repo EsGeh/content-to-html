@@ -192,6 +192,51 @@ data WebContent
 	| Image URI
 	| Audio URI
 	| Download DownloadInfo
+	| Form FormInfo
+	deriving( Show, Read, Eq, Ord, Generic  )
+
+data FormInfo
+	= FormInfo {
+		form_content :: [FormEntry],
+		form_action :: T.Text,
+		form_method :: FormMethod
+	}
+	deriving( Show, Read, Eq, Ord, Generic  )
+
+data FormMethod
+	= Get
+	| Post
+	deriving( Eq, Ord, Generic  )
+
+instance Show FormMethod where
+	show Get = "get"
+	show Post = "post"
+
+instance Read FormMethod where
+	readsPrec = \case
+		{-
+		"get" -> Get
+		"post" -> Post
+		-}
+		_ -> error "read FormMethod error"
+
+data FormEntry
+	= FormEntry {
+		formEntry_caption :: T.Text,
+		formEntry_type :: FormEntryType,
+		formEntry_name :: T.Text,
+		formEntry_defValue :: T.Text
+	}
+	deriving( Show, Read, Eq, Ord, Generic  )
+
+formEntryTypeToText = \case
+	TextInput -> T.pack "text"
+	SubmitInput -> T.pack "submit"
+
+data FormEntryType
+	= TextInput
+	| TextAreaInput
+	| SubmitInput
 	deriving( Show, Read, Eq, Ord, Generic  )
 
 data DownloadInfo
@@ -219,3 +264,7 @@ instance ToJSON DownloadInfo where
 -- $(deriveJSON jsonOptions ''Article)
 -- $(deriveJSON jsonOptions ''Section)
 $(deriveJSON jsonOptions ''WebContent)
+$(deriveJSON jsonOptions ''FormInfo)
+$(deriveJSON jsonOptions ''FormMethod)
+$(deriveJSON jsonOptions ''FormEntry)
+$(deriveJSON jsonOptions ''FormEntryType)

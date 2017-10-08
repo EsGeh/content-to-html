@@ -21,8 +21,8 @@ toURI =
 	URI . normalizeURI
 	where
 		normalizeURI =
-			("/" </>) -- uris have to start with "/"!
-			. normalise -- try to transform to a normal form
+			("/" </>) . -- uris have to start with "/"!
+			normalise -- try to transform to a normal form
 
 uriFromList :: [FilePath] -> URI
 uriFromList uri =
@@ -37,14 +37,14 @@ uriToList =
 
 uriSplitPrefix :: URI -> (URI, URI)
 uriSplitPrefix uri =
+	case uriToList uri of
+		(x:xs) -> (toURI $ x, toURI $ joinPath xs)
+		[] -> (toURI "", toURI "")
 {-
 	case uriToList uri of
 		(x:xs) -> Just $ (toURI $ x, toURI $ joinPath xs)
 		_ -> Nothing
 -}
-	case uriToList uri of
-		(x:xs) -> (toURI $ x, toURI $ joinPath xs)
-		[] -> (toURI "", toURI "")
 
 instance FromJSON URI where
 	parseJSON = (toURI <$>) . parseJSON

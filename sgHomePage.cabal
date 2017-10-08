@@ -23,6 +23,7 @@ library
     Plugins.ProjDB,
     Plugins.ProjDB.ToWebDoc, Plugins.ProjDB.Types, Plugins.ProjDB.DB,
     Plugins.HierarchicWebsite, Plugins.HierarchicWebsite.Types,
+    Plugins.Form,
     Types.Resource,
     Types.WebDocument, Types.WebDocument.ToHtml, Types.WebDocument.AttributesConfig
   build-depends:
@@ -31,6 +32,7 @@ library
     lucid == 2.9.5.*,
     text == 1.2.2.*,
     yaml == 0.8.18.*,
+    smtp-mail,
     filepath == 1.4.0.*,
     mtl == 2.2.*,
     transformers == 0.4.2.*,

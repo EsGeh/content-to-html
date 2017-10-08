@@ -50,7 +50,7 @@ data Config
 
 plugin :: Plugins.Plugin RoutesState
 plugin = defPlugin {
-	plugin_answerReq = answer_req,
+	plugin_answerReq = fmap Just . answer_req,
 	plugin_descr = "hierarchic website"
 }
 

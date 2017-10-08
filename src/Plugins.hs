@@ -16,13 +16,20 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 
 
+type PluginSystemM m a =
+	St.StateT Plugins m a
+
+-- |run with a specific plugin type 'Plugin state'
+type RunReqT state m a =
+	St.StateT state (St.StateT Plugins m) a
+
 -- |a "plugin" is something that can answer requests by returning a '.Resource'
 data Plugin state
 	= Plugin {
-		-- |answering an external request
+		-- |answering an external request, optionally changing the view:
 		plugin_answerReq ::
 			forall m . (MonadIO m, MonadError String m) =>
-			Request -> RunReqT state m Resource,
+			Request -> RunReqT state m (Maybe Resource),
 		-- |answering a request from an other plugin
 		plugin_answerInternalReq ::
 			forall m . (MonadIO m, MonadError String m) =>
@@ -39,20 +46,28 @@ defPlugin =
 		plugin_descr = "no description available"
 	}
 
-type RunReqT state m a =
-	St.StateT state (St.StateT Plugins m) a
-
--- |create a plugin and a corresponding initial state
-type Loader state = forall m . (MonadIO m, MonadError String m) => FilePath -> m (Plugin state, state)
-
-data LoaderCont = forall state . LoaderCont (Loader state)
-data PluginStateCont = forall state . PluginStateCont (Plugin state, state)
-
-type PluginName = String
-
-type PluginsLoadParams = M.Map URI (FilePath, LoaderCont)
 type Plugins = M.Map URI PluginStateCont
 
+-- |create a plugin and a corresponding initial state
+type Loader state =
+	forall m . (MonadIO m, MonadError String m) =>
+	FilePath -> m (Plugin state, state)
+
+type PluginsLoadParams = M.Map URI (FilePath, LoaderCont)
+
+-- |container for a plugin loader
+data LoaderCont =
+	forall state . LoaderCont (Loader state)
+
+-- |container for a plugin bundled with its current state
+data PluginStateCont =
+	forall state . PluginStateCont (Plugin state, state)
+
+-------------------------------
+-- use plugins:
+-------------------------------
+
+-- |load all plugins
 loadPlugins ::
 	(MonadIO m, MonadError String m) =>
 	PluginsLoadParams
@@ -68,6 +83,20 @@ loadPlugins pluginsLoadParams =
 					PluginStateCont <$>
 						loader pluginCfg
 
+-- |redirect a request to corresponding plugin
+requestToPlugins ::
+	(MonadIO m, MonadError String m) =>
+	URI -> Request -> St.StateT Plugins m (Maybe Resource)
+requestToPlugins =
+	requestToPlugins' runPlugin
+	where
+		runPlugin ::
+			(MonadIO m, MonadError String m) =>
+			Plugin state -> state -> Request -> St.StateT Plugins m (Maybe Resource, state)
+		runPlugin plugin st req =
+			St.runStateT `flip` st $ plugin_answerReq plugin req 
+
+-- |redirect a request to corresponding plugin
 requestToPluginsInternal ::
 	(MonadIO m, MonadError String m) =>
 	URI -> Request -> St.StateT Plugins m Section
@@ -79,18 +108,6 @@ requestToPluginsInternal =
 			Plugin state -> state -> Request -> St.StateT Plugins m (Section, state)
 		runPlugin plugin st req =
 			St.runStateT `flip` st $ plugin_answerInternalReq plugin req 
-
-requestToPlugins ::
-	(MonadIO m, MonadError String m) =>
-	URI -> Request -> St.StateT Plugins m Resource
-requestToPlugins =
-	requestToPlugins' runPlugin
-	where
-		runPlugin ::
-			(MonadIO m, MonadError String m) =>
-			Plugin state -> state -> Request -> St.StateT Plugins m (Resource, state)
-		runPlugin plugin st req =
-			St.runStateT `flip` st $ plugin_answerReq plugin req 
 
 requestToPlugins' ::
 	(MonadIO m, MonadError String m) =>
@@ -127,7 +144,7 @@ test_load path =
 
 test_answer ::
 	(MonadIO m, MonadError String m) =>
-	Request -> m Resource
+	Request -> m (Maybe Resource)
 test_answer req =
 	do
 		liftIO $ putStrLn $ "test: anwswering " ++ show req

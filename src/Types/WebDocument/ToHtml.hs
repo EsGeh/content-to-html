@@ -108,6 +108,18 @@ contentToHtml x =
 				toHtml $ T.pack "your browser seems not to support html5 audio playback"
 		Download DownloadInfo{..} ->
 			a_ [href_ . T.pack . fromURI $ download_uri, download_ "" ] $ toHtml $ T.unpack download_caption
+		Form FormInfo{..} ->
+			form_ [action_ $ form_action, method_ $ T.pack $ show form_method] $
+				mconcat $ map `flip` form_content $ formEntryToHtml
+
+formEntryToHtml :: FormEntry -> Html ()
+formEntryToHtml FormEntry{..} =
+	(toHtml formEntry_caption <>) $
+	case formEntry_type of
+		TextAreaInput ->
+			textarea_ [name_ formEntry_name] $ toHtml formEntry_defValue
+		_ ->
+			input_ [type_ $ formEntryTypeToText $ formEntry_type, name_ formEntry_name, value_ formEntry_defValue]
 
 renderSection :: Attributes -> Int -> Maybe Title -> Html () -> Html ()
 renderSection attributes _ mTitle content =

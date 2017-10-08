@@ -3,7 +3,7 @@
 # ---------------------------------
 
 menuSection: {"class": "navbar navbar-inverse navbar-fixed-top container-fluid"}
-mainSection: {"class": "container"}
+mainSection: {"class": "container main-section"}
 menuClasses:
   menu:
     - {"class": "nav navbar-nav"}

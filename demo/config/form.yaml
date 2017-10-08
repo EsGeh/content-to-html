@@ -1,0 +1,19 @@
+# ----------------------------------
+# config for the form plugin
+# ---------------------------------
+
+# all URIs given here are internal to the plugin
+
+onSubmit:
+  sendemail:
+    hostname: "bla"
+    port: 1
+    from:
+      addressName: "testForm"
+      addressEmail: "from@test.de"
+    to:
+      - addressName: "dest"
+        addressEmail: "test@test.de"
+    cc: []
+    bcc: []
+    subject: "contact form"

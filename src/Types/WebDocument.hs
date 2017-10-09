@@ -86,43 +86,10 @@ data SectionInfoGen content
 defSectionInfo :: content -> SectionInfoGen content
 defSectionInfo content = SectionInfo Nothing content attributes_empty
 
-{-
-data StyleInfo
-	= StyleInfo {
-		style_class :: Attributes
-	}
-	deriving( Show, Read, Eq, Ord, Generic )
-
-defStyleInfo :: StyleInfo
-defStyleInfo = StyleInfo attributes_empty
--}
-
 instance Functor SectionGen where
 	fmap f = \case
 		SectionEntry x -> SectionEntry $ f x
 		SectionNode l -> SectionNode $ sectionInfo_mapToContent (map $ fmap f) l
-
-{-
-instance Foldable SectionGen where
-	foldMap toM = \case
-		SectionEntry info -> toM info
-		SectionNode info ->
--}
-
-{-
-instance FromJSON Section where
-	parseJSON = withObject "section" $ \o ->
-		(SectionEntry <$> parseJSON (Object o))
-		<|>
-		(SectionNode <$> parseJSON (Object o))
-
-instance FromJSON (SectionNodeInfo SectionInfo) where
-	parseJSON = withObject "container section info" $ \o ->
-		do
-			title <- o .: "title"
-			content <- o .: "subsections"
-			return $ SectionInfo title content
--}
 
 instance FromJSON SectionInfo where
 	parseJSON = withObject "section info" $ \o ->

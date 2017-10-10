@@ -13,6 +13,8 @@ import Data.Maybe
 import Data.Aeson
 import qualified Data.HashMap.Lazy as HM
 
+
+runReadDBT :: ReaderT db m a -> db -> m a
 runReadDBT = runReaderT
 
 class

@@ -21,7 +21,6 @@ import GHC.Generics
 import Control.Monad.IO.Class
 import Control.Monad.Except
 import Control.Monad.State
-import qualified Data.Map as M
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 
@@ -98,7 +97,7 @@ load configFile =
 answer_req ::
 	(MonadIO m, MonadError String m) =>
 	Request -> Plugins.RunReqT FormState m Section
-answer_req (resKey,_) =
+answer_req _ =
 	get >>= \_ ->
 		return $ SectionEntry $ SectionInfo{
 			section_title = Just "testForm",
@@ -143,6 +142,7 @@ handleFormData (uri,params) =
 	else
 		throwError $ concat ["data request not defined \"", fromURI uri, "\"!" ]
 
+formInfo :: FormInfo
 formInfo = FormInfo{
 	form_content =
 		[ FormEntry{

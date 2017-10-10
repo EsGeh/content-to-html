@@ -196,6 +196,7 @@ data FormEntry
 	}
 	deriving( Show, Read, Eq, Ord, Generic  )
 
+formEntryTypeToText :: FormEntryType -> T.Text
 formEntryTypeToText = \case
 	TextInput -> T.pack "text"
 	SubmitInput -> T.pack "submit"

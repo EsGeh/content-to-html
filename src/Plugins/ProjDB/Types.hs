@@ -66,8 +66,11 @@ instance DB ProjDB ProjectKey Project where
 type Name = T.Text
 
 --allArtists, allProjects, allPersons :: ProjDB -> [Name]
+allArtists :: ProjDB -> [ArtistKey]
 allArtists = M.keys . db_artists
+allProjects :: ProjDB -> [ProjectKey]
 allProjects = M.keys . db_projects
+allPersons :: ProjDB -> [PersonKey]
 allPersons = M.keys . db_persons
 
 lookupArtist :: ArtistKey -> ProjDB -> Maybe Artist

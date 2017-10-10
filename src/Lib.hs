@@ -88,14 +88,14 @@ runHomepage :: Config -> IO ()
 runHomepage Config{..} =
 	handleErrors' $
 	do
-		plugins <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
-		let initState = plugins
-		spockCfg <- lift $ spockCfg $ initState
+		pluginsInitState <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
+		let initState = pluginsInitState
+		spockCfg <- lift $ calcSpockCfg $ initState
 		liftIO $ runSpock config_port $
 				spock spockCfg $
 				spockRoutes config_attributesConfig
 	where
-		spockCfg initState' =
+		calcSpockCfg initState' =
 			defaultSpockCfg sessionInit PCNoDatabase initState'
 		sessionInit =
 			Session $ (toURI "undefined", [])
@@ -130,11 +130,11 @@ sendResource ::
 	-> Request
 	-> Resource
 	-> ExceptT String (ActionCtxT ctx (WebStateM conn Session st)) b
-sendResource attributesConfig request resource =
+sendResource attributesConfig req resource =
 	case resource of
 		FullPageResource page ->
 			do
-				lift $ writeSession $ Session request
+				lift $ writeSession $ Session req
 				lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig $ page
 		PageResource page ->
 			(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page

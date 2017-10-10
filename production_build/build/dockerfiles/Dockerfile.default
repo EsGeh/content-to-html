@@ -1,0 +1,22 @@
+FROM fcpo/base
+
+# COMPILE
+
+# VOLUME /usr/src
+# WORKDIR /usr/src
+
+# ADD ./ /usr/src
+# WORKDIR /usr/src
+
+# ENV STACK_DIR stackdir-default
+
+# ENV OUTDIR production_out
+
+# ENV STACK_ROOT $OUTDIR/stackroot-default
+# ENV STACK_WORK $OUTDIR/stackwork-default
+
+ENV GHC_OPTIONS=
+
+COPY ["production_build/build/build_script.sh", "/usr/local/sbin/"]
+
+ENTRYPOINT ["/usr/local/sbin/build_script.sh"]

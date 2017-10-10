@@ -1,3 +1,11 @@
 # gitignore
 
-**/.*
+production_build/tmp
+production_build/output-default
+production_build/output-static
+
+# stack working directory
+.stack-work
+
+# vim temporary files
+*.swp

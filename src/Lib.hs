@@ -26,7 +26,8 @@ import Types.URI
 
 import qualified Lucid
 
-import Web.Spock.Safe
+import Web.Spock
+import Web.Spock.Config
 import Control.Monad.State
 import qualified Data.Map as M
 import Control.Monad.Except
@@ -89,8 +90,9 @@ runHomepage Config{..} =
 	do
 		plugins <- Plugins.loadPlugins $ pluginsLoadParams config_pluginsConfig
 		let initState = plugins
+		spockCfg <- lift $ spockCfg $ initState
 		liftIO $ runSpock config_port $
-				spock (spockCfg $ initState) $
+				spock spockCfg $
 				spockRoutes config_attributesConfig
 	where
 		spockCfg initState' =

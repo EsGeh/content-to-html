@@ -7,6 +7,7 @@ module GetConfig(
 import qualified Lib
 
 import Options.Applicative
+import Data.Monoid
 -- import Control.Exception.Base
 import qualified Data.Map as M
 import Control.Monad

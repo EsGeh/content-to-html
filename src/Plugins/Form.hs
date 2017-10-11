@@ -16,7 +16,9 @@ import Utils.Yaml
 import Utils.JSONOptions
 import Data.Aeson.TH
 
-import qualified Network.Mail.SMTP as Email
+import qualified Network.HaskellNet.SMTP.SSL as Email
+import qualified Network.Mail.Mime as Email
+-- import qualified Network.Mail.SMTP as Email
 import GHC.Generics
 import Control.Monad.IO.Class
 import Control.Monad.Except
@@ -116,31 +118,49 @@ handleFormData (uri,params) =
 			_ <- case config_onSubmit $ formState_config cfg of
 				SendEmail EmailInfo{ email_hostname, email_port, email_auth = mAuthInfo, ..} ->
 					liftIO $
-					maybe
-						(Email.sendMail' email_hostname $ fromIntegral email_port)
-						(\AuthInfo{..} -> Email.sendMailWithLogin' email_hostname (fromIntegral email_port) auth_username auth_password)
-						mAuthInfo $
-					Email.simpleMail
-						(fromAddress email_from)
-						(fromAddress <$> email_to)
-						(fromAddress <$> email_cc)
-						(fromAddress <$> email_bcc)
-						email_subject $
-					[ Email.plainTextPart $ L.fromStrict $ T.pack $
-						unlines $ map show params
-					]
+					Email.doSMTPSTARTTLSWithSettings
+						email_hostname
+						Email.defaultSettingsSMTPSTARTTLS{ Email.sslPort = fromIntegral email_port } $
+					\conn ->
+					do
+						maybe (return ()) `flip` mAuthInfo $ \AuthInfo{..} ->
+							Email.authenticate authType auth_username auth_password conn >>= \authSucceeded ->
+							when (not authSucceeded) $
+								putStrLn "authentication failed!"
+							{-
+							if authSucceeded
+								then putStrLn "authentication succeeded"
+								else putStrLn "authentication failed!"
+							-}
+						Email.sendMimeMail2 `flip` conn $
+							Email.Mail {
+								Email.mailFrom = (fromAddress email_from),
+								Email.mailTo = (fromAddress <$> email_to),
+								Email.mailCc = (fromAddress <$> email_cc),
+								Email.mailBcc = (fromAddress <$> email_bcc),
+								Email.mailHeaders =
+									[("Subject", email_subject)],
+								Email.mailParts =
+									[ [ Email.plainPart $ L.fromStrict $ T.pack $
+										renderEmail $ params
+									] ]
+							}
+						liftIO $ putStrLn $
+							unlines $
+							[ concat [ "email sent to ", show email_to ,". content:" ]
+							, "---------------------"
+							, renderEmail params
+							, "---------------------"
+							]
 				DoNothing -> return ()
-			{-
-			liftIO $ putStrLn $
-				concat $
-				[ "received data request:\n"
-				, show uri, "\n"
-				, show params
-				]
-			-}
 			return $ Nothing
 	else
 		throwError $ concat ["data request not defined \"", fromURI uri, "\"!" ]
+	where
+		authType = Email.PLAIN
+		renderEmail =
+			(unlines .) $ map $ \(field,value) ->
+				concat [ T.unpack field, ": ", T.unpack value ]
 
 formInfo :: FormInfo
 formInfo = FormInfo{

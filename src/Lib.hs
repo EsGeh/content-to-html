@@ -23,19 +23,17 @@ import Types.Resource
 import Types.WebDocument.ToHtml
 import Types.WebDocument.AttributesConfig
 import Types.URI
-import qualified Utils.Yaml as Yaml
 
 import qualified Lucid
 
-import Web.Spock
-import Web.Spock.Config
+import qualified Web.Spock as Spock
+import qualified Web.Spock.Config as Spock
 import Control.Monad.State
 import Control.Applicative
 import qualified Data.Map as M
 import Control.Monad.Except
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
-import Data.Maybe
 
 
 type MainPluginName = String
@@ -62,24 +60,27 @@ data MainPluginConfig =
 	}
 	deriving (Show, Read)
 
-mainPluginNames = M.keys mainPlugins
+mainPluginNames :: [MainPluginName]
+mainPluginNames = M.keys mainPluginsByName
+
+embeddableNames :: [Plugins.EmbeddableName]
 embeddableNames =
 	M.keys (
-		embeddableLoaders
+		embeddableLoadersByName
 		:: M.Map Plugins.EmbeddableName (FilePath -> Plugins.EmbeddableLoader (ExceptT String IO))
 	)
 
-mainPlugins ::
+mainPluginsByName ::
 	M.Map MainPluginName Plugins.MainLoaderContainer
-mainPlugins =
+mainPluginsByName =
 	M.fromList $
 	[ ("website", Plugins.MainLoaderContainer Site.load)
 	]
 
-embeddableLoaders ::
+embeddableLoadersByName ::
 	(MonadIO m, MonadError String m) =>
 	M.Map Plugins.EmbeddableName (FilePath -> Plugins.EmbeddableLoader m)
-embeddableLoaders =
+embeddableLoadersByName =
 	M.fromList $
 	[ ("projDB", ProjDB.load)
 	, ("form", Form.load)
@@ -89,7 +90,7 @@ loadAllPlugins ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
 	Config -> m Plugins.AllPlugins
-loadAllPlugins config@Config{..} =
+loadAllPlugins Config{..} =
 	do
 		--liftIO $ putStrLn $ show config
 		liftIO $ putStrLn $ "configuring embeddables..."
@@ -123,7 +124,7 @@ preloadEmbeddables embeddablesConfig=
 	do
 		loader' <-
 			maybe (throwError $ "embeddable \"" ++ name ++ "\" not found") return $
-				M.lookup name embeddableLoaders
+				M.lookup name embeddableLoadersByName
 		return (name, loader' configFile)
 
 loadMainPlugins ::
@@ -138,7 +139,7 @@ loadMainPlugins embeddableLoaders config =
 		liftIO $ putStrLn $ concat ["loading plugin \"", name, "\"..." ]
 		Plugins.MainLoaderContainer mainLoader <-
 			maybe (throwError $ "main plugin \"" ++ name ++ "\" not found") return $
-			M.lookup name mainPlugins :: m Plugins.MainLoaderContainer
+			M.lookup name mainPluginsByName :: m Plugins.MainLoaderContainer
 		(mainPlugin, initState, embeddableParams) <- mainLoader mainPlugin_configFile
 		--liftIO $ putStrLn $ concat ["embeddableParams: ", show embeddableParams]
 		embeddables <-
@@ -159,7 +160,7 @@ loadMainPlugins embeddableLoaders config =
 			, embeddables
 			)
 
-type RoutesM = SpockM DBConn Session GlobalState
+type RoutesM = Spock.SpockM DBConn Session GlobalState
 
 type DBConn = ()
 data Session
@@ -177,12 +178,12 @@ runHomepage config@Config{..} =
 		pluginsInitState <- loadAllPlugins $ config
 		let initState = pluginsInitState
 		spockCfg <- lift $ calcSpockCfg $ initState
-		liftIO $ runSpock config_port $
-				spock spockCfg $
+		liftIO $ Spock.runSpock config_port $
+				Spock.spock spockCfg $
 				spockRoutes config_attributesConfig
 	where
 		calcSpockCfg initState' =
-			defaultSpockCfg sessionInit PCNoDatabase initState'
+			Spock.defaultSpockCfg sessionInit Spock.PCNoDatabase initState'
 		sessionInit =
 			Session $ (toURI "undefined", [])
 		handleErrors' x =
@@ -191,14 +192,14 @@ runHomepage config@Config{..} =
 
 spockRoutes :: AttributesCfg -> RoutesM ()
 spockRoutes attributesConfig =
-	getState >>= \pluginsState ->
-	hookAny GET $ ( . uriFromList . map T.unpack) $ \fullUri ->
+	Spock.getState >>= \pluginsState ->
+	Spock.hookAny Spock.GET $ ( . uriFromList . map T.unpack) $ \fullUri ->
 	let
 		(uriPref, req) = uriSplitPrefix $ fullUri
 	in
 		-- ((liftIO $ putStrLn $ concat [ "req: ", show fullUri, " parsed as ", show (uriPref, req) ]) >>) $
 		handleErrors $
-		lift params >>= \reqParams ->
+		lift Spock.params >>= \reqParams ->
 			do
 				(mNewPage, _) <-
 					runStateT `flip` pluginsState $
@@ -210,32 +211,32 @@ spockRoutes attributesConfig =
 						sendResource attributesConfig (fullUri, reqParams) newPage
 					Nothing ->
 						lift $
-						readSession >>= \session ->
-							redirect $ T.pack $ fromURI $ fst $ session_lastViewReq session
+						Spock.readSession >>= \session ->
+							Spock.redirect $ T.pack $ fromURI $ fst $ session_lastViewReq session
 
 sendResource ::
 	AttributesCfg
 	-> Request
 	-> Resource
-	-> ExceptT String (ActionCtxT ctx (WebStateM conn Session st)) b
+	-> ExceptT String (Spock.ActionCtxT ctx (Spock.WebStateM conn Session st)) b
 sendResource attributesConfig req resource =
 	case resource of
 		FullPageResource page ->
 			do
-				lift $ writeSession $ Session req
-				lift . html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig $ page
+				lift $ Spock.writeSession $ Session req
+				lift . Spock.html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig $ page
 		PageResource page ->
-			(lift . html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
+			(lift . Spock.html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
 		FileResource FileResInfo{..} ->
-			lift $ file (fromResType $ fileRes_type) $ fileRes_file
+			lift $ Spock.file (fromResType $ fileRes_type) $ fileRes_file
 
 handleErrors ::
 	MonadIO m =>
-	ExceptT String (ActionCtxT ctx m) a
-	-> ActionCtxT ctx m a
+	ExceptT String (Spock.ActionCtxT ctx m) a
+	-> Spock.ActionCtxT ctx m a
 handleErrors x =
 	runExceptT x
 	>>=
 	either
-		(\e -> text $ T.pack $ "404: resource not found. error: " ++ e)
+		(\e -> Spock.text $ T.pack $ "404: resource not found. error: " ++ e)
 		return

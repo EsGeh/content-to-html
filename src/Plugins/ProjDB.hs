@@ -10,20 +10,16 @@ module Plugins.ProjDB(
 
 import Plugins.ProjDB.Types
 import Plugins.ProjDB.DB
-import qualified Types.Resource as Resource
 import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
 import qualified Types.WebDocument as WebDoc
 import qualified Plugins
-import Types.URI
 import Utils.Yaml
 import Utils.JSONOptions
 import Data.Aeson.TH
 
-import Data.Yaml
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Text as T
-import Data.List
 
 
 plugin :: Plugins.Embeddable Request ProjDB

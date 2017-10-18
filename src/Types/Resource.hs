@@ -1,15 +1,12 @@
-{-# LANGUAGE TemplateHaskell #-}
 module Types.Resource(
 	module Types.Resource,
 ) where
 
 import Types.WebDocument
 import Types.URI
-import Utils.Lens
 
 import qualified Data.Text as T
 import Control.Monad.Identity
-import qualified Lens.Micro.Platform as Lens
 
 
 -- |a resource that the server provides.

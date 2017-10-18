@@ -76,6 +76,7 @@ data EmbeddablePlaceholder
 	}
 	deriving( Show, Read, Ord, Eq, Generic)
 
+placeHolderFromConfig :: EmbeddableConfig -> EmbeddablePlaceholder
 placeHolderFromConfig EmbeddableConfig{..} =
 	EmbeddablePlaceholder{
 		placeholder_instance = embeddableCfg_instance,

@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Plugins.ProjDB(
 	load,
 	ProjDB(..),
@@ -15,6 +15,9 @@ import qualified Plugins.ProjDB.ToWebDoc as ToWebDoc
 import qualified Types.WebDocument as WebDoc
 import qualified Plugins
 import Types.URI
+import Utils.Yaml
+import Utils.JSONOptions
+import Data.Aeson.TH
 
 import Data.Yaml
 import Control.Monad.State
@@ -23,31 +26,37 @@ import qualified Data.Text as T
 import Data.List
 
 
-plugin :: Plugins.Plugin ProjDB
-plugin = Plugins.defPlugin {
-	-- Plugins.plugin_answerReq = 
-	Plugins.plugin_answerInternalReq = \req ->
+plugin :: Plugins.Embeddable Request ProjDB
+plugin = Plugins.defaultEmbeddable {
+	Plugins.embeddable_answerInternalReq = \_ params ->
 		get >>= \db ->
 		runReadDBT `flip` db $
-			genSection =<< parseRequest req,
-	Plugins.plugin_descr = "projDB"
+			genSection params,
+	Plugins.embeddable_descr = "projDB"
 }
 
-load :: Plugins.Loader ProjDB
-load =
-	fmap (plugin, ) .
-	loadState
+load ::
+	(MonadIO m, MonadError String m) =>
+	FilePath -> Plugins.EmbeddableLoader m
+load config params =
+	do
+	initSt <- loadState config
+	request <-
+		case fromJSON params of
+			Error err -> throwError $ show err
+			Success res -> return res
+	return $ Plugins.EmbeddableStateCont (plugin, request, initSt)
 
 data Request
 	= Artists Filter
 	| Projects Filter
-	deriving( Show, Read )
+	deriving( Show, Read)
 
 data Filter
 	= FilterAll
 	| FilterNot Filter
 	| FieldName `FilterEq` T.Text
-	deriving( Show, Read )
+	deriving( Show, Read)
 
 genSection ::
 	(MonadIO m, MonadError String m) =>
@@ -60,6 +69,7 @@ genSection r =
 		Projects filterExpr ->
 			ToWebDoc.projectsPage =<< (lift $ filterExprToFunc filterExpr)
 
+{-
 parseRequest ::
 	(MonadIO m, MonadError String m) =>
 	Resource.Request -> m Request
@@ -68,7 +78,9 @@ parseRequest req@(uri, params)
 	| uri == toURI "projects" = Projects <$> parseFilterExpr params
 	| otherwise = 
 		throwError $ "request not found: " ++ show req
+-}
 
+{-
 parseFilterExpr ::
 	(MonadIO m, MonadError String m) =>
 	Resource.Params -> m Filter
@@ -82,6 +94,7 @@ parseFilterExpr = f . sortParams
 				-- _ -> throwError $ "error: could not parse filter: " ++ show params
 		sortParams =
 			sortBy $ \x _ -> if fst x == "not" then LT else GT
+-}
 
 filterExprToFunc ::
 	forall m a .
@@ -98,7 +111,8 @@ filterExprToFunc = \case
 loadState :: (MonadIO m, MonadError String m) => FilePath -> m ProjDB
 loadState cfg =
 	fmap projDBFromEntries $
-	either (throwError . show) return =<< liftIO (decodeFileEither cfg)
+	loadYaml cfg
+	-- either (throwError . show) return =<< liftIO (decodeFileEither cfg)
 
 {-
 newState :: (MonadIO m, MonadError String m) => m ProjDB
@@ -109,3 +123,6 @@ store :: FilePath -> ProjDB -> IO ()
 store filename musicList =
 	encodeFile filename $ projDBToEntries musicList
 -}
+
+$(deriveJSON jsonOptions ''Request)
+$(deriveJSON jsonOptions ''Filter)

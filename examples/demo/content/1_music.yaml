@@ -4,13 +4,18 @@ subsections:
     subsections:
       - content:
           text: "list of artists in the database:"
-      - uri: projDB/artists
-  - title: projects
-    subsections:
+      - embeddable: "projDB"
+        instance: "projArtists"
+        params:
+          artists:
+            filterall: []
       - content:
-          text: "list projects except those by \"artistX\":"
-      - uri: projDB/projects
-        params: # key value pairs to be sent to the "projDB" plugin
-          not: ""
-          artist: "artistX"
-          # name: "ProjectX1"
+          text: "list of projects in the database:"
+      - embeddable: "projDB"
+        instance: "projProjects"
+        params:
+          projects:
+            filternot:
+              filtereq:
+                - fromFieldName: "artists"
+                - "artistX"

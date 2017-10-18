@@ -27,6 +27,30 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 
 
+plugin :: Plugins.Embeddable () FormState
+plugin = Plugins.defaultEmbeddable {
+	Plugins.embeddable_answerInternalReq = embedd,
+	Plugins.embeddable_answerReq = \_ -> handleFormData,
+	Plugins.embeddable_descr = "html forms to deal with user input"
+}
+
+load ::
+	(MonadIO m, MonadError String m) =>
+	FilePath -> Plugins.EmbeddableLoader m
+load configFile _ =
+	loadYaml configFile >>= \(config :: Config) ->
+	--(either (throwError . show) return =<< liftIO (decodeFileEither configFile)) >>= \Config{..} ->
+	do
+		liftIO $ putStrLn "loading website..."
+		return $ EmbeddableStateCont $
+			(plugin, (), FormState config)
+		{-
+		return $
+			(plugin,) $
+			FormState $
+			config
+		-}
+
 data FormState
 	= FormState {
 		formState_config :: Config
@@ -78,39 +102,21 @@ data AuthInfo
 	}
 	deriving (Generic, Show, Read)
 
-plugin :: Plugins.Plugin FormState
-plugin = defPlugin {
-	plugin_answerInternalReq = answer_req,
-	plugin_answerReq = handleFormData,
-	plugin_descr = "html forms to deal with user input"
-}
-
-load :: Plugins.Loader FormState
-load configFile =
-	loadYaml configFile >>= \(config :: Config) ->
-	--(either (throwError . show) return =<< liftIO (decodeFileEither configFile)) >>= \Config{..} ->
-	do
-		liftIO $ putStrLn "loading website..."
-		return $
-			(plugin,) $
-			FormState $
-			config
-
-answer_req ::
+embedd ::
 	(MonadIO m, MonadError String m) =>
-	Request -> Plugins.RunReqT FormState m Section
-answer_req _ =
+	Plugins.EmbeddableInstanceID -> () -> Plugins.RunReqT FormState m Section
+embedd instanceId _ =
 	get >>= \_ ->
 		return $ SectionEntry $ SectionInfo{
 			section_title = Just "testForm",
-			section_content = Form formInfo,
+			section_content = Form $ formInfo instanceId,
 			section_attributes = attributes_empty
 		}
 
 handleFormData ::
 	(MonadIO m, MonadError String m) =>
-	Request -> RunReqT FormState m (Maybe Resource)
-handleFormData (uri,params) =
+	() -> Request -> RunReqT FormState m (Maybe Resource)
+handleFormData _ (uri,params) =
 	get >>= \cfg ->
 	if uri == toURI ""
 	then
@@ -162,8 +168,8 @@ handleFormData (uri,params) =
 			(unlines .) $ map $ \(field,value) ->
 				concat [ T.unpack field, ": ", T.unpack value ]
 
-formInfo :: FormInfo
-formInfo = FormInfo{
+formInfo :: String -> FormInfo
+formInfo prefix = FormInfo{
 	form_content =
 		[ FormEntry{
 				formEntry_caption = "test:",
@@ -178,7 +184,7 @@ formInfo = FormInfo{
 				formEntry_defValue = "Submit"
 			}
 		],
-	form_action = "/form",
+	form_action = T.pack $ prefix,
 	form_method = Get
 }
 

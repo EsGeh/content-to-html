@@ -19,6 +19,7 @@ library
   other-modules:
     Types.URI,
     Utils.Yaml, Utils.JSONOptions,
+    Utils.Lens,
     Plugins,
     Plugins.ProjDB,
     Plugins.ProjDB.ToWebDoc, Plugins.ProjDB.Types, Plugins.ProjDB.DB,

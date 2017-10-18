@@ -4,13 +4,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Plugins.ProjDB.DB where
 
 import qualified Data.Text as T
 import Control.Monad.Reader
 import Data.Maybe
 
-import Data.Aeson
+--import Data.Aeson
+import qualified Utils.Yaml as Yaml
+import qualified Utils.JSONOptions as Yaml
+import qualified Data.Aeson.TH as Yaml
 import qualified Data.HashMap.Lazy as HM
 
 
@@ -50,16 +54,16 @@ class FromKey a where
 class HasField cont field where
 	getField :: FieldName -> cont -> Maybe field
 
-contains :: ToJSON a => FieldName -> a -> T.Text -> Bool
+contains :: Yaml.ToJSON a => FieldName -> a -> T.Text -> Bool
 contains field cont val =
-	contains' $ Data.Aeson.toJSON cont
+	contains' $ Yaml.toJSON cont
 	where
-		contains' :: Value -> Bool
-		contains' (Object m) =
+		contains' :: Yaml.Value -> Bool
+		contains' (Yaml.Object m) =
 			fromMaybe False $
 			HM.lookup (fromFieldName field) m >>= \case
-				String s -> return $ (s == val)
-				Array a ->
+				Yaml.String s -> return $ (s == val)
+				Yaml.Array a ->
 				{-
 					return $
 					val `Vec.elem` a
@@ -67,19 +71,19 @@ contains field cont val =
 					return $
 					or $
 					fmap `flip` a $ \case
-						String s -> s == val
+						Yaml.String s -> s == val
 						_ -> False
 				_ -> Nothing
 		contains' _ = False
 
-getFieldVal :: ToJSON a => FieldName -> a -> Maybe T.Text
+getFieldVal :: Yaml.ToJSON a => FieldName -> a -> Maybe T.Text
 getFieldVal field cont =
-	getFieldVal' $ Data.Aeson.toJSON cont
+	getFieldVal' $ Yaml.toJSON cont
 	where
-		getFieldVal' :: Value -> Maybe T.Text
-		getFieldVal' (Object m) =
+		getFieldVal' :: Yaml.Value -> Maybe T.Text
+		getFieldVal' (Yaml.Object m) =
 			HM.lookup (fromFieldName field) m >>= \case
-				String s -> Just s
+				Yaml.String s -> Just s
 				_ -> Nothing
 		getFieldVal' _ = Nothing
 
@@ -96,3 +100,5 @@ instance (Eq a) => CanContain a a where
 instance (Eq a) => CanContain [a] a where
 	contains l x = x `elem` l
 -}
+
+$(Yaml.deriveJSON Yaml.jsonOptions ''FieldName)

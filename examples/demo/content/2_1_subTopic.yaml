@@ -1,5 +1,6 @@
 title: "chapter 2.1"
 attributes: {"class": "article"}
 subsections:
-  - uri: form
-    params:
+  - embeddable: "form"
+    instance: "/userfeedback"
+    params: {}

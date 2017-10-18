@@ -8,12 +8,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
-module Plugins.HierarchicWebsite where
+module Plugins.HierarchicWebsite(
+	load
+) where
 
 import Types.Resource
 import Types.WebDocument
 import Plugins.HierarchicWebsite.Types
-import Plugins
+import qualified Plugins
 import Types.URI
 import Utils.Yaml
 import Utils.JSONOptions
@@ -111,7 +113,7 @@ load configFile =
 					userCss = config_userCSS,
 					addToHeader = config_addToHeader
 				}
-			embeddables :: M.Map EmbeddableInstanceID (EmbeddableName, Value)
+			embeddables :: M.Map Plugins.EmbeddableInstanceID (Plugins.EmbeddableName, Value)
 			embeddables =
 				M.unions $
 				map `flip` (M.elems sharedData) $ collectEmbeddables
@@ -145,7 +147,7 @@ fillTemplate = \case
 
 collectEmbeddables :: 
 	(ResourceTemplate EmbeddableConfig)
-	-> M.Map EmbeddableInstanceID (EmbeddableName, Value)
+	-> M.Map Plugins.EmbeddableInstanceID (Plugins.EmbeddableName, Value)
 collectEmbeddables =
 	M.fromList .
 		\case
@@ -154,12 +156,12 @@ collectEmbeddables =
 	where
 		collectEmbeddables' ::
 			SectionGen (Either EmbeddableConfig SectionInfo)
-			-> [(EmbeddableInstanceID, (EmbeddableName, Value))]
+			-> [(Plugins.EmbeddableInstanceID, (Plugins.EmbeddableName, Value))]
 		collectEmbeddables' =
 				eitherSection l r
 		l ::
 			Either EmbeddableConfig SectionInfo
-			-> [(EmbeddableInstanceID, (EmbeddableName, Value))]
+			-> [(Plugins.EmbeddableInstanceID, (Plugins.EmbeddableName, Value))]
 		l (Left EmbeddableConfig{..}) =
 			[
 				( embeddableCfg_instance
@@ -169,7 +171,7 @@ collectEmbeddables =
 		l _ = []
 		r ::
 			SectionNodeInfo (Either EmbeddableConfig SectionInfo)
-			-> [(EmbeddableInstanceID, (EmbeddableName, Value))]
+			-> [(Plugins.EmbeddableInstanceID, (Plugins.EmbeddableName, Value))]
 		r = join . map collectEmbeddables' . section_content
 
 mapToPlaceHolders ::
@@ -200,9 +202,6 @@ data DirConfig
 		dirConfig_uriPrefix :: FilePath
 	}
 	deriving( Show, Read, Generic )
-
-defDirConfig :: FilePath -> DirConfig
-defDirConfig path = DirConfig path path
 
 loadSharedData ::
 	forall m .
@@ -259,16 +258,24 @@ loadFilesInDir calcRes dirPath =
 							[ fromURI uri, " -> ", dirPath </> path ]
 					return mRes 
 
+{-
+defDirConfig :: FilePath -> DirConfig
+defDirConfig path = DirConfig path path
+-}
+
+{-
 prettyTemplate :: ResourceGen a -> String
 prettyTemplate = \case
 	FullPageResource _ -> "FullPageResource"
 	PageResource _ -> "PageResource"
 	FileResource FileResInfo{..} -> concat [ "File \"", fileRes_file, "\"" ]
+-}
 
 -----------------------------------
 -- filter/search routes:
 -----------------------------------
 
+{-
 routes_pages :: Routes placeHolder-> PageRoutes placeHolder
 routes_pages =
 	M.mapMaybe (\r -> case r of { PageResource page -> Just page; _ -> Nothing}) 
@@ -276,6 +283,7 @@ routes_pages =
 routes_files :: Routes placeHolder -> FileRoutes
 routes_files =
 	M.mapMaybe (\r -> case r of { FileResource info -> Just info; _ -> Nothing}) 
+-}
 
 findPage ::
 	(MonadError String m) => URI -> Routes placeHolder -> m (ResourceTemplate placeHolder)

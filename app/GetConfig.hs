@@ -40,8 +40,10 @@ toLibConfig Config{..} =
 			Lib.loadAttributesConfig config_attributesConfig
 		return $ Lib.Config{
 			Lib.config_port = config_port,
-			Lib.config_mainPluginsConfig = config_pluginsConfig,
-			Lib.config_embeddablesConfig = config_embeddablesConfig,
+			Lib.config_pluginsConfig = Lib.PluginsConfig {
+				Lib.config_mainPluginsConfig = config_pluginsConfig,
+				Lib.config_embeddablesConfig = config_embeddablesConfig
+			},
 			Lib.config_attributesConfig = attributesCfg
 		}
 

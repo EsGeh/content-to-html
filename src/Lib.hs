@@ -5,12 +5,13 @@
 {-# LANGUAGE TupleSections #-}
 module Lib(
 	Config(..),
-	MainPluginsConfig,
-	mainPluginNames, MainPluginConfig(..),
-	EmbeddablesConfig, embeddableNames,
+	Plugins.PluginsConfig(..),
+	Plugins.MainPluginsConfig,
+	mainPluginNames, Plugins.MainPluginConfig(..),
+	Plugins.EmbeddablesConfig, embeddableNames,
 	runHomepage,
 	URI, toURI, fromURI,
-	MainPluginName,
+	Plugins.MainPluginName,
 	loadAttributesConfig
 ) where
 
@@ -36,42 +37,26 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 
 
-type MainPluginName = String
-
 data Config
 	= Config {
 		config_port :: Int,
-		config_mainPluginsConfig :: MainPluginsConfig,
-		config_embeddablesConfig :: EmbeddablesConfig,
+		config_pluginsConfig :: Plugins.PluginsConfig,
 		config_attributesConfig :: AttributesCfg
 	}
 	deriving (Show, Read)
 
-type MainPluginsConfig =
-	M.Map MainPluginName MainPluginConfig
-
-type EmbeddablesConfig =
-	M.Map Plugins.EmbeddableName FilePath
-
-data MainPluginConfig = 
-	MainPluginConfig {
-		mainPlugin_uri :: URI,
-		mainPlugin_configFile :: FilePath
-	}
-	deriving (Show, Read)
-
-mainPluginNames :: [MainPluginName]
+mainPluginNames :: [Plugins.MainPluginName]
 mainPluginNames = M.keys mainPluginsByName
 
 embeddableNames :: [Plugins.EmbeddableName]
 embeddableNames =
 	M.keys (
 		embeddableLoadersByName
-		:: M.Map Plugins.EmbeddableName (FilePath -> Plugins.EmbeddableLoader (ExceptT String IO))
+		:: M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader (ExceptT String IO))
 	)
 
 mainPluginsByName ::
-	M.Map MainPluginName Plugins.MainLoaderContainer
+	M.Map Plugins.MainPluginName Plugins.MainLoaderContainer
 mainPluginsByName =
 	M.fromList $
 	[ ("website", Plugins.MainLoaderContainer Site.load)
@@ -79,86 +64,12 @@ mainPluginsByName =
 
 embeddableLoadersByName ::
 	(MonadIO m, MonadError String m) =>
-	M.Map Plugins.EmbeddableName (FilePath -> Plugins.EmbeddableLoader m)
+	M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader m)
 embeddableLoadersByName =
 	M.fromList $
 	[ ("projDB", ProjDB.load)
 	, ("form", Form.load)
 	]
-
-loadAllPlugins ::
-	forall m .
-	(MonadIO m, MonadError String m) =>
-	Config -> m Plugins.AllPlugins
-loadAllPlugins Config{..} =
-	do
-		--liftIO $ putStrLn $ show config
-		liftIO $ putStrLn $ "configuring embeddables..."
-		embeddableLoaders <-
-			preloadEmbeddables config_embeddablesConfig :: m (M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader m))
-		liftIO $ putStrLn $ "loading main plugins..."
-		(mainPlugins, embeddables)  <-
-			fmap bundlePlugins $
-			loadMainPlugins embeddableLoaders config_mainPluginsConfig
-		liftIO $ putStrLn $ "loading done"
-		return Plugins.AllPlugins{
-			Plugins.allPlugins_mainPlugins = mainPlugins,
-			Plugins.allPlugins_embeddables = embeddables
-		}
-	where
-		bundlePlugins ::
-			[(URI, Plugins.MainPluginStateCont, Plugins.Embeddables)]
-			-> (Plugins.MainPlugins, Plugins.Embeddables)
-		bundlePlugins list =
-			( M.fromList $ map `flip` list $ \(uri, plugin, _) -> (uri, plugin)
-			, M.unions $ map `flip` list $ \(_, _, embeddables) -> embeddables
-			)
-
-preloadEmbeddables :: 
-	forall m .
-	(MonadIO m, MonadError String m) =>
-	EmbeddablesConfig -> m (M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader m))
-preloadEmbeddables embeddablesConfig=
-	fmap M.fromList $
-	forM (M.toList embeddablesConfig) $ \(name, configFile) ->
-	do
-		loader' <-
-			maybe (throwError $ "embeddable \"" ++ name ++ "\" not found") return $
-				M.lookup name embeddableLoadersByName
-		return (name, loader' configFile)
-
-loadMainPlugins ::
-	forall m .
-	(MonadIO m, MonadError String m) =>
-	M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader m)
-	-> MainPluginsConfig -> m [(URI, Plugins.MainPluginStateCont, Plugins.Embeddables)]
-loadMainPlugins embeddableLoaders config =
-	-- fmap (\x -> (M.fromList $ map fst x, _ $ map snd x )) $
-	forM (M.toList config) $ \(name, MainPluginConfig{..}) ->
-	do
-		liftIO $ putStrLn $ concat ["loading plugin \"", name, "\"..." ]
-		Plugins.MainLoaderContainer mainLoader <-
-			maybe (throwError $ "main plugin \"" ++ name ++ "\" not found") return $
-			M.lookup name mainPluginsByName :: m Plugins.MainLoaderContainer
-		(mainPlugin, initState, embeddableParams) <- mainLoader mainPlugin_configFile
-		--liftIO $ putStrLn $ concat ["embeddableParams: ", show embeddableParams]
-		embeddables <-
-			fmap M.fromList $
-			forM (M.toList embeddableParams) $ \(instanceId, (embeddableName, params)) ->
-				do
-					embeddableLoader <-
-						maybe (throwError $ "embeddable \"" ++ embeddableName ++ "\" not found") return $
-						M.lookup embeddableName embeddableLoaders
-						:: m (Plugins.EmbeddableLoader m)
-					embeddable <- embeddableLoader params :: m Plugins.EmbeddableStateCont
-					return (instanceId, embeddable)
-			-- :: m Plugins.Embeddables
-		--liftIO $ putStrLn $ "bla2"
-		return $
-			( mainPlugin_uri
-			, Plugins.MainPluginStateCont (mainPlugin, initState)
-			, embeddables
-			)
 
 type RoutesM = Spock.SpockM DBConn Session GlobalState
 
@@ -172,10 +83,14 @@ type GlobalState = Plugins.AllPlugins
 
 
 runHomepage :: Config -> IO ()
-runHomepage config@Config{..} =
+runHomepage Config{..} =
 	handleErrors' $
 	do
-		pluginsInitState <- loadAllPlugins $ config
+		pluginsInitState <-
+			Plugins.loadAllPlugins
+				mainPluginsByName
+				embeddableLoadersByName
+				config_pluginsConfig
 		let initState = pluginsInitState
 		spockCfg <- lift $ calcSpockCfg $ initState
 		liftIO $ Spock.runSpock config_port $

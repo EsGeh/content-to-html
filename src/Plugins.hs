@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
 module Plugins where
 
 import Types.Resource
@@ -22,17 +23,18 @@ import qualified Data.Map as M
 import qualified Lens.Micro.Platform as Lens
 
 
+-- The Plugin system consists of MainPlugins and Embeddables
 data AllPlugins
 	= AllPlugins{
 		allPlugins_mainPlugins :: MainPlugins,
 		allPlugins_embeddables :: Embeddables
 	}
 
--- |run with a specific plugin type 'Plugin state'
+type MainPlugins = M.Map URI MainPluginStateCont
+type Embeddables = M.Map EmbeddableInstanceID EmbeddableStateCont
+
 type RunReqT state m a =
 	St.StateT state (St.StateT AllPlugins m) a
-
-type MainPlugins = M.Map URI MainPluginStateCont
 
 -- |a "MainPlugin" is something that can answer requests by returning a 'Resource'
 data MainPlugin state
@@ -60,50 +62,149 @@ type MainLoader state =
 data MainLoaderContainer = forall state . MainLoaderContainer (MainLoader state)
 
 
-data Embeddable ctxtConfig state
+data Embeddable params state
 	= Embeddable {
 
 		-- |answering an external request, optionally changing the view:
 		embeddable_answerReq ::
 			forall m . (MonadIO m, MonadError String m) =>
 			EmbeddableInstanceID
-			-> ctxtConfig
+			-> params
 			-> Request -> RunReqT state m (Maybe Resource),
 			
 		-- |answering a request from an other plugin
 		embeddable_answerInternalReq ::
 			forall m . (MonadIO m, MonadError String m) =>
 			EmbeddableInstanceID
-			-> ctxtConfig
+			-> params
 			-> RunReqT state m Section,
 
 		embeddable_descr :: T.Text
 
 	}
 
-defaultEmbeddable :: Embeddable ctxtConfig state
+defaultEmbeddable :: Embeddable params state
 defaultEmbeddable =
 	Embeddable {
 		embeddable_answerInternalReq = \_ _ -> throwError "internal requests are not allowed!",
 		embeddable_answerReq = \_ _ _ -> throwError "requests not allowed!",
-		Plugins.embeddable_descr = "defaultPlugin"
+		embeddable_descr = "defaultEmbeddable"
 	}
 
 type EmbeddableLoader m =
-	Yaml.Value -> m EmbeddableStateCont
+	FilePath -> Yaml.Value -> m EmbeddableStateCont
 
 -- |container for a plugin bundled with its current state
 data EmbeddableStateCont =
-	forall ctxtConfig state . EmbeddableStateCont (Embeddable ctxtConfig state, ctxtConfig, state)
-
-type Embeddables = M.Map EmbeddableInstanceID EmbeddableStateCont
+	forall params state . EmbeddableStateCont (Embeddable params state, params, state)
 
 type EmbeddableInstanceID = String
 
+
+type MainPluginName = String
 type EmbeddableName = String
 
 
 $(Lens.makeLensesWith lensRules' ''AllPlugins)
+
+data PluginsConfig
+	= PluginsConfig{
+		config_mainPluginsConfig :: MainPluginsConfig,
+		config_embeddablesConfig :: EmbeddablesConfig
+	}
+	deriving (Show, Read)
+
+type MainPluginsConfig =
+	M.Map MainPluginName MainPluginConfig
+
+type EmbeddablesConfig =
+	M.Map EmbeddableName FilePath
+
+data MainPluginConfig = 
+	MainPluginConfig {
+		mainPlugin_uri :: URI,
+		mainPlugin_configFile :: FilePath
+	}
+	deriving (Show, Read)
+
+loadAllPlugins ::
+	forall m .
+	(MonadIO m, MonadError String m) =>
+	M.Map MainPluginName MainLoaderContainer
+	-> M.Map EmbeddableName (EmbeddableLoader m)
+	-> PluginsConfig
+	-> m AllPlugins
+loadAllPlugins mainPluginsByName embeddableLoadersByName PluginsConfig{..} =
+	do
+		--liftIO $ putStrLn $ show config
+		liftIO $ putStrLn $ "configuring embeddables..."
+		embeddableLoaders <-
+			preloadEmbeddables embeddableLoadersByName config_embeddablesConfig :: m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
+		liftIO $ putStrLn $ "loading main plugins..."
+		(mainPlugins, embeddables)  <-
+			fmap bundlePlugins $
+			loadMainPlugins mainPluginsByName embeddableLoaders config_mainPluginsConfig
+		liftIO $ putStrLn $ "loading done"
+		return AllPlugins{
+			allPlugins_mainPlugins = mainPlugins,
+			allPlugins_embeddables = embeddables
+		}
+	where
+		bundlePlugins ::
+			[(URI, MainPluginStateCont, Embeddables)]
+			-> (MainPlugins, Embeddables)
+		bundlePlugins list =
+			( M.fromList $ map `flip` list $ \(uri, plugin, _) -> (uri, plugin)
+			, M.unions $ map `flip` list $ \(_, _, embeddables) -> embeddables
+			)
+
+preloadEmbeddables :: 
+	forall m .
+	(MonadIO m, MonadError String m) =>
+	M.Map EmbeddableName (EmbeddableLoader m)
+	-> EmbeddablesConfig
+	-> m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
+preloadEmbeddables embeddableLoadersByName embeddablesConfig=
+	fmap M.fromList $
+	forM (M.toList embeddablesConfig) $ \(name, configFile) ->
+	do
+		loader' <-
+			maybe (throwError $ "embeddable \"" ++ name ++ "\" not found") return $
+				M.lookup name embeddableLoadersByName
+		return (name, loader' configFile)
+
+loadMainPlugins ::
+	forall m .
+	(MonadIO m, MonadError String m) =>
+	M.Map MainPluginName MainLoaderContainer
+	-> M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont)
+	-> MainPluginsConfig -> m [(URI, MainPluginStateCont, Embeddables)]
+loadMainPlugins mainPluginsByName embeddableLoaders config =
+	forM (M.toList config) $ \(name, MainPluginConfig{..}) ->
+	do
+		liftIO $ putStrLn $ concat ["loading plugin \"", name, "\"..." ]
+		MainLoaderContainer mainLoader <-
+			maybe (throwError $ "main plugin \"" ++ name ++ "\" not found") return $
+			M.lookup name mainPluginsByName :: m MainLoaderContainer
+		(mainPlugin, initState, embeddableParams) <- mainLoader mainPlugin_configFile
+		--liftIO $ putStrLn $ concat ["embeddableParams: ", show embeddableParams]
+		embeddables <-
+			fmap M.fromList $
+			forM (M.toList embeddableParams) $ \(instanceId, (embeddableName, params)) ->
+				do
+					embeddableLoader <-
+						maybe (throwError $ "embeddable \"" ++ embeddableName ++ "\" not found") return $
+						M.lookup embeddableName embeddableLoaders
+						:: m (Yaml.Value -> m EmbeddableStateCont)
+					embeddable <- embeddableLoader params :: m EmbeddableStateCont
+					return (instanceId, embeddable)
+			-- :: m Embeddables
+		--liftIO $ putStrLn $ "bla2"
+		return $
+			( mainPlugin_uri
+			, MainPluginStateCont (mainPlugin, initState)
+			, embeddables
+			)
 
 -- |redirect a request to corresponding plugin
 requestToPlugins ::
@@ -200,48 +301,3 @@ execEmbeddable instanceId =
 			Embeddable params state -> state -> params -> St.StateT AllPlugins m (Section, state)
 		runReq plugin st params =
 			St.runStateT `flip` st $ embeddable_answerInternalReq plugin instanceId params
-
-{-
--------------------------------
--- use plugins:
--------------------------------
-
--- |load all plugins
-loadPlugins ::
-	(MonadIO m, MonadError String m) =>
-	PluginsLoadParams
-	-> m Plugins
-loadPlugins pluginsLoadParams =
-	fmap M.fromList $
-	mapM `flip` M.toList pluginsLoadParams $ \(pref, (pluginCfg, loaderCont)) ->
-		(pref, ) <$>
-		case loaderCont of
-			LoaderCont loader ->
-				do
-					liftIO $ putStrLn $ "registering plugin at prefix: " ++ fromURI pref
-					PluginStateCont <$>
-						loader pluginCfg
-
--- example plugin:
-
-data TestState = TestState
-
-test_load :: forall ctxtConfig m . (MonadIO m, MonadError String m) => FilePath -> m (Plugin ctxtConfig TestState, TestState)
-test_load path =
-	do
-		liftIO $ putStrLn $ "test: loading " ++ path
-		return $
-			(,TestState)
-			defPlugin {
-				plugin_answerReq = test_answer,
-				plugin_descr = "test description"
-			}
-
-test_answer ::
-	(MonadIO m, MonadError String m) =>
-	Request -> m (Maybe Resource)
-test_answer req =
-	do
-		liftIO $ putStrLn $ "test: anwswering " ++ show req
-		throwError "could not answer"
--}

@@ -6,12 +6,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-module Plugins.Form where
+module Plugins.Form(
+	load
+) where
 
 import Types.Resource
 import Types.WebDocument
 import Types.URI
-import Plugins
+import qualified Plugins as Plugins
 import Utils.Yaml
 import Utils.JSONOptions
 import Data.Aeson.TH
@@ -27,8 +29,8 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 
 
-plugin :: Plugins.Embeddable () FormState
-plugin = Plugins.defaultEmbeddable {
+embeddableImpl :: Plugins.Embeddable () FormState
+embeddableImpl = Plugins.defaultEmbeddable {
 	Plugins.embeddable_answerInternalReq = embedd,
 	Plugins.embeddable_answerReq = \_ -> handleFormData,
 	Plugins.embeddable_descr = "html forms to deal with user input"
@@ -36,20 +38,13 @@ plugin = Plugins.defaultEmbeddable {
 
 load ::
 	(MonadIO m, MonadError String m) =>
-	FilePath -> Plugins.EmbeddableLoader m
+	Plugins.EmbeddableLoader m
 load configFile _ =
 	loadYaml configFile >>= \(config :: Config) ->
-	--(either (throwError . show) return =<< liftIO (decodeFileEither configFile)) >>= \Config{..} ->
 	do
 		liftIO $ putStrLn "loading website..."
-		return $ EmbeddableStateCont $
-			(plugin, (), FormState config)
-		{-
-		return $
-			(plugin,) $
-			FormState $
-			config
-		-}
+		return $ Plugins.EmbeddableStateCont $
+			(embeddableImpl, (), FormState config)
 
 data FormState
 	= FormState {
@@ -115,7 +110,7 @@ embedd instanceId _ =
 
 handleFormData ::
 	(MonadIO m, MonadError String m) =>
-	() -> Request -> RunReqT FormState m (Maybe Resource)
+	() -> Request -> Plugins.RunReqT FormState m (Maybe Resource)
 handleFormData _ (uri,params) =
 	get >>= \cfg ->
 	if uri == toURI ""

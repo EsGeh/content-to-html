@@ -5,7 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Plugins.ProjDB(
 	load,
-	ProjDB(..),
+	--ProjDB(..),
 ) where
 
 import Plugins.ProjDB.Types
@@ -22,8 +22,8 @@ import Control.Monad.Except
 import qualified Data.Text as T
 
 
-plugin :: Plugins.Embeddable Request ProjDB
-plugin = Plugins.defaultEmbeddable {
+embeddableImpl :: Plugins.Embeddable Request ProjDB
+embeddableImpl = Plugins.defaultEmbeddable {
 	Plugins.embeddable_answerInternalReq = \_ params ->
 		get >>= \db ->
 		runReadDBT `flip` db $
@@ -33,7 +33,7 @@ plugin = Plugins.defaultEmbeddable {
 
 load ::
 	(MonadIO m, MonadError String m) =>
-	FilePath -> Plugins.EmbeddableLoader m
+	Plugins.EmbeddableLoader m
 load config params =
 	do
 	initSt <- loadState config
@@ -41,7 +41,7 @@ load config params =
 		case fromJSON params of
 			Error err -> throwError $ show err
 			Success res -> return res
-	return $ Plugins.EmbeddableStateCont (plugin, request, initSt)
+	return $ Plugins.EmbeddableStateCont (embeddableImpl, request, initSt)
 
 data Request
 	= Artists Filter

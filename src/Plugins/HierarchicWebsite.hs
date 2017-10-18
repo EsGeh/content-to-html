@@ -56,8 +56,8 @@ data Config
 	deriving (Generic, Show, Read)
 
 type Routes placeHolder = M.Map URI (ResourceTemplate placeHolder)
-type PageRoutes placeHolder = M.Map URI (SectionTemplate placeHolder)
-type FileRoutes = M.Map URI FileResInfo
+--type PageRoutes placeHolder = M.Map URI (SectionTemplate placeHolder)
+--type FileRoutes = M.Map URI FileResInfo
 
 -- |a resource which can include further requests to generate sections.
 type ResourceTemplate placeHolder = ResourceGen (SectionTemplate placeHolder)
@@ -66,7 +66,6 @@ data EmbeddableConfig
 	= EmbeddableConfig {
 		embeddableCfg_instance :: String,
 		embeddableCfg_embeddable :: String,
-		--embeddableCfg_placeholder :: EmbeddablePlaceholder,
 		embeddableCfg_params :: Yaml.Value
 	}
 	deriving( Show, Read, Eq, Generic)

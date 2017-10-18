@@ -52,7 +52,7 @@ embeddableNames :: [Plugins.EmbeddableName]
 embeddableNames =
 	M.keys (
 		embeddableLoadersByName
-		:: M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader (ExceptT String IO))
+		:: M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoaderContainer (ExceptT String IO))
 	)
 
 mainPluginsByName ::
@@ -64,11 +64,11 @@ mainPluginsByName =
 
 embeddableLoadersByName ::
 	(MonadIO m, MonadError String m) =>
-	M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoader m)
+	M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoaderContainer m)
 embeddableLoadersByName =
 	M.fromList $
-	[ ("projDB", ProjDB.load)
-	, ("form", Form.load)
+	[ ("projDB", Plugins.EmbeddableLoaderContainer ProjDB.load)
+	, ("form", Plugins.EmbeddableLoaderContainer Form.load)
 	]
 
 type RoutesM = Spock.SpockM DBConn Session GlobalState

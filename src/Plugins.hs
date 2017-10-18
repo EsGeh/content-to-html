@@ -14,6 +14,7 @@ import Types.URI
 import Utils.Lens
 
 import qualified Data.Yaml as Yaml
+import qualified Data.Aeson as Yaml( fromJSON, Result(..) )
 
 import Control.Monad.IO.Class
 import Control.Monad.Except
@@ -91,8 +92,23 @@ defaultEmbeddable =
 		embeddable_descr = "defaultEmbeddable"
 	}
 
+data EmbeddableLoaderContainer m =
+	forall params state .
+	Yaml.FromJSON params =>
+	EmbeddableLoaderContainer (EmbeddableLoader params state m)
+
+type EmbeddableLoader params state m =
+	FilePath -> params -> m (Embeddable params state, params, state)
+
+{-
+type EmbeddableLoader params state m =
+	FilePath -> Yaml.Value -> m (Embeddable params state, params, state)
+-}
+
+{-
 type EmbeddableLoader m =
 	FilePath -> Yaml.Value -> m EmbeddableStateCont
+-}
 
 -- |container for a plugin bundled with its current state
 data EmbeddableStateCont =
@@ -131,7 +147,7 @@ loadAllPlugins ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
 	M.Map MainPluginName MainLoaderContainer
-	-> M.Map EmbeddableName (EmbeddableLoader m)
+	-> M.Map EmbeddableName (EmbeddableLoaderContainer m)
 	-> PluginsConfig
 	-> m AllPlugins
 loadAllPlugins mainPluginsByName embeddableLoadersByName PluginsConfig{..} =
@@ -161,17 +177,25 @@ loadAllPlugins mainPluginsByName embeddableLoadersByName PluginsConfig{..} =
 preloadEmbeddables :: 
 	forall m .
 	(MonadIO m, MonadError String m) =>
-	M.Map EmbeddableName (EmbeddableLoader m)
+	M.Map EmbeddableName (EmbeddableLoaderContainer m)
 	-> EmbeddablesConfig
 	-> m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
 preloadEmbeddables embeddableLoadersByName embeddablesConfig=
 	fmap M.fromList $
 	forM (M.toList embeddablesConfig) $ \(name, configFile) ->
 	do
-		loader' <-
+		EmbeddableLoaderContainer loader <-
 			maybe (throwError $ "embeddable \"" ++ name ++ "\" not found") return $
 				M.lookup name embeddableLoadersByName
-		return (name, loader' configFile)
+		let
+			loader' yaml =
+				do
+					params <-
+						case Yaml.fromJSON yaml of
+							Yaml.Error err -> throwError $ show err
+							Yaml.Success res -> return res
+					EmbeddableStateCont <$> loader configFile params
+		return (name, loader')
 
 loadMainPlugins ::
 	forall m .

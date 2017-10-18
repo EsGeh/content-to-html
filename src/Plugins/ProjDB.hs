@@ -33,15 +33,11 @@ embeddableImpl = Plugins.defaultEmbeddable {
 
 load ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.EmbeddableLoader m
-load config params =
+	Plugins.EmbeddableLoader Request ProjDB m
+load config request =
 	do
 	initSt <- loadState config
-	request <-
-		case fromJSON params of
-			Error err -> throwError $ show err
-			Success res -> return res
-	return $ Plugins.EmbeddableStateCont (embeddableImpl, request, initSt)
+	return $ (embeddableImpl, request, initSt)
 
 data Request
 	= Artists Filter

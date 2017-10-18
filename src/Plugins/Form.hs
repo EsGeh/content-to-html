@@ -38,12 +38,12 @@ embeddableImpl = Plugins.defaultEmbeddable {
 
 load ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.EmbeddableLoader m
+	Plugins.EmbeddableLoader () FormState m
 load configFile _ =
 	loadYaml configFile >>= \(config :: Config) ->
 	do
 		liftIO $ putStrLn "loading website..."
-		return $ Plugins.EmbeddableStateCont $
+		return $
 			(embeddableImpl, (), FormState config)
 
 data FormState

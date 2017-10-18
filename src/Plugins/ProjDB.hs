@@ -4,7 +4,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Plugins.ProjDB(
-	load,
+	embeddable,
+	--load,
 	--ProjDB(..),
 ) where
 
@@ -22,22 +23,22 @@ import Control.Monad.Except
 import qualified Data.Text as T
 
 
-embeddableImpl :: Plugins.Embeddable Request ProjDB
-embeddableImpl = Plugins.defaultEmbeddable {
+embeddable :: Plugins.Embeddable Request ProjectsState
+embeddable = Plugins.defaultEmbeddable {
 	Plugins.embeddable_answerInternalReq = \_ params ->
-		get >>= \db ->
+		get >>= \(ProjectsState db) ->
 		runReadDBT `flip` db $
 			genSection params,
 	Plugins.embeddable_descr = "projDB"
 }
 
-load ::
-	(MonadIO m, MonadError String m) =>
-	Plugins.EmbeddableLoader Request ProjDB m
-load config request =
-	do
-	initSt <- loadState config
-	return $ (embeddableImpl, request, initSt)
+newtype ProjectsState = ProjectsState { fromProjectsState :: ProjDB }
+
+instance FromJSON ProjectsState where
+	parseJSON =
+		fmap (ProjectsState . projDBFromEntries) .
+		parseJSON
+
 
 data Request
 	= Artists Filter
@@ -99,12 +100,6 @@ filterExprToFunc = \case
 	fieldName `FilterEq` val -> return $
 		\a ->
 			contains fieldName a val
-
-loadState :: (MonadIO m, MonadError String m) => FilePath -> m ProjDB
-loadState cfg =
-	fmap projDBFromEntries $
-	loadYaml cfg
-	-- either (throwError . show) return =<< liftIO (decodeFileEither cfg)
 
 {-
 newState :: (MonadIO m, MonadError String m) => m ProjDB

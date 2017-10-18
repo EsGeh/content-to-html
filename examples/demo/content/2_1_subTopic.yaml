@@ -3,4 +3,15 @@ attributes: {"class": "article"}
 subsections:
   - embeddable: "form"
     instance: "/userfeedback"
-    params: {}
+    params:
+      onSubmit: sendemail
+      email:
+        from:
+          addressName: "testForm"
+          addressEmail: "from@test.de"
+        to:
+          - addressName: "dest"
+            addressEmail: "test@test.de"
+        cc: []
+        bcc: []
+        subject: "contact form"

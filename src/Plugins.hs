@@ -12,8 +12,9 @@ import Types.Resource
 import Types.WebDocument
 import Types.URI
 import Utils.Lens
+import qualified Utils.Yaml as Yaml
 
-import qualified Data.Yaml as Yaml
+--import qualified Data.Yaml as Yaml
 import qualified Data.Aeson as Yaml( fromJSON, Result(..) )
 
 import Control.Monad.IO.Class
@@ -92,23 +93,11 @@ defaultEmbeddable =
 		embeddable_descr = "defaultEmbeddable"
 	}
 
-data EmbeddableLoaderContainer m =
+data EmbeddableContainer =
 	forall params state .
-	Yaml.FromJSON params =>
-	EmbeddableLoaderContainer (EmbeddableLoader params state m)
+	(Yaml.FromJSON state, Yaml.FromJSON params) =>
+	EmbeddableContainer (Embeddable params state)
 
-type EmbeddableLoader params state m =
-	FilePath -> params -> m (Embeddable params state, params, state)
-
-{-
-type EmbeddableLoader params state m =
-	FilePath -> Yaml.Value -> m (Embeddable params state, params, state)
--}
-
-{-
-type EmbeddableLoader m =
-	FilePath -> Yaml.Value -> m EmbeddableStateCont
--}
 
 -- |container for a plugin bundled with its current state
 data EmbeddableStateCont =
@@ -147,15 +136,17 @@ loadAllPlugins ::
 	forall m .
 	(MonadIO m, MonadError String m) =>
 	M.Map MainPluginName MainLoaderContainer
-	-> M.Map EmbeddableName (EmbeddableLoaderContainer m)
+	-- -> M.Map EmbeddableName (EmbeddableLoaderContainer m)
+	-> M.Map EmbeddableName EmbeddableContainer
 	-> PluginsConfig
 	-> m AllPlugins
-loadAllPlugins mainPluginsByName embeddableLoadersByName PluginsConfig{..} =
+loadAllPlugins mainPluginsByName embeddablesByName PluginsConfig{..} =
 	do
 		--liftIO $ putStrLn $ show config
 		liftIO $ putStrLn $ "configuring embeddables..."
 		embeddableLoaders <-
-			preloadEmbeddables embeddableLoadersByName config_embeddablesConfig :: m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
+			preloadEmbeddables embeddablesByName config_embeddablesConfig
+			:: m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
 		liftIO $ putStrLn $ "loading main plugins..."
 		(mainPlugins, embeddables)  <-
 			fmap bundlePlugins $
@@ -177,25 +168,28 @@ loadAllPlugins mainPluginsByName embeddableLoadersByName PluginsConfig{..} =
 preloadEmbeddables :: 
 	forall m .
 	(MonadIO m, MonadError String m) =>
-	M.Map EmbeddableName (EmbeddableLoaderContainer m)
+	M.Map EmbeddableName EmbeddableContainer
 	-> EmbeddablesConfig
 	-> m (M.Map EmbeddableName (Yaml.Value -> m EmbeddableStateCont))
-preloadEmbeddables embeddableLoadersByName embeddablesConfig=
+preloadEmbeddables embeddablesByName embeddablesConfig =
 	fmap M.fromList $
 	forM (M.toList embeddablesConfig) $ \(name, configFile) ->
 	do
-		EmbeddableLoaderContainer loader <-
+		EmbeddableContainer embeddable <-
 			maybe (throwError $ "embeddable \"" ++ name ++ "\" not found") return $
-				M.lookup name embeddableLoadersByName
+				M.lookup name embeddablesByName
+		config <-
+			Yaml.loadYaml configFile
 		let
-			loader' yaml =
+			loader yaml =
 				do
+					liftIO $ putStrLn $ concat ["loading embeddable \"", name, "\"" ]
 					params <-
 						case Yaml.fromJSON yaml of
 							Yaml.Error err -> throwError $ show err
 							Yaml.Success res -> return res
-					EmbeddableStateCont <$> loader configFile params
-		return (name, loader')
+					return $ EmbeddableStateCont (embeddable, params, config)
+		return (name, loader)
 
 loadMainPlugins ::
 	forall m .

@@ -7,10 +7,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 module Plugins.Form(
-	load
+	embeddable
 ) where
 
-import Types.Resource
+import Types.Resource hiding( Params )
 import Types.WebDocument
 import Types.URI
 import qualified Plugins as Plugins
@@ -29,45 +29,37 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as L
 
 
-embeddableImpl :: Plugins.Embeddable () FormState
-embeddableImpl = Plugins.defaultEmbeddable {
+embeddable :: Plugins.Embeddable Params Config
+embeddable = Plugins.defaultEmbeddable {
 	Plugins.embeddable_answerInternalReq = embedd,
 	Plugins.embeddable_answerReq = \_ -> handleFormData,
 	Plugins.embeddable_descr = "html forms to deal with user input"
 }
 
-load ::
-	(MonadIO m, MonadError String m) =>
-	Plugins.EmbeddableLoader () FormState m
-load configFile _ =
-	loadYaml configFile >>= \(config :: Config) ->
-	do
-		liftIO $ putStrLn "loading website..."
-		return $
-			(embeddableImpl, (), FormState config)
 
-data FormState
-	= FormState {
-		formState_config :: Config
-	}
-	deriving (Generic, Show, Read)
-
-data Config
-	= Config {
-		config_onSubmit :: OnSubmitAction
+type Config = SMTPConfig
+data Params
+	= Params{
+		params_email :: EmailInfo,
+		params_onSubmit :: OnSubmitAction
 	}
 	deriving (Generic, Show, Read)
 
 data OnSubmitAction
-	= SendEmail EmailInfo
+	= SendEmail
 	| DoNothing
+	deriving (Generic, Show, Read)
+
+data SMTPConfig
+	= SMTPConfig {
+		email_hostname :: String,
+		email_port :: Int,
+		email_auth :: Maybe AuthInfo
+	}
 	deriving (Generic, Show, Read)
 
 data EmailInfo
 	= EmailInfo {
-		email_hostname :: String,
-		email_port :: Int,
-		email_auth :: Maybe AuthInfo,
 		email_from :: Address,
 		email_to :: [Address],
 		email_cc :: [Address],
@@ -99,7 +91,7 @@ data AuthInfo
 
 embedd ::
 	(MonadIO m, MonadError String m) =>
-	Plugins.EmbeddableInstanceID -> () -> Plugins.RunReqT FormState m Section
+	Plugins.EmbeddableInstanceID -> Params -> Plugins.RunReqT Config m Section
 embedd instanceId _ =
 	get >>= \_ ->
 		return $ SectionEntry $ SectionInfo{
@@ -110,21 +102,22 @@ embedd instanceId _ =
 
 handleFormData ::
 	(MonadIO m, MonadError String m) =>
-	() -> Request -> Plugins.RunReqT FormState m (Maybe Resource)
-handleFormData _ (uri,params) =
-	get >>= \cfg ->
+	Params -> Request -> Plugins.RunReqT Config m (Maybe Resource)
+handleFormData Params{ params_email=EmailInfo{..}, ..} (uri,params) =
+	get >>= \SMTPConfig{..} ->
 	if uri == toURI ""
 	then
 		do
-			_ <- case config_onSubmit $ formState_config cfg of
-				SendEmail EmailInfo{ email_hostname, email_port, email_auth = mAuthInfo, ..} ->
+			_ <- case params_onSubmit of
+				SendEmail ->
+				-- SendEmail EmailInfo{ email_hostname, email_port, email_auth = mAuthInfo, ..} ->
 					liftIO $
 					Email.doSMTPSTARTTLSWithSettings
 						email_hostname
 						Email.defaultSettingsSMTPSTARTTLS{ Email.sslPort = fromIntegral email_port } $
 					\conn ->
 					do
-						maybe (return ()) `flip` mAuthInfo $ \AuthInfo{..} ->
+						maybe (return ()) `flip` email_auth $ \AuthInfo{..} ->
 							Email.authenticate authType auth_username auth_password conn >>= \authSucceeded ->
 							when (not authSucceeded) $
 								putStrLn "authentication failed!"
@@ -183,7 +176,8 @@ formInfo prefix = FormInfo{
 	form_method = Get
 }
 
-$(deriveJSON jsonOptions ''Config)
+$(deriveJSON jsonOptions ''Params)
+$(deriveJSON jsonOptions ''SMTPConfig)
 $(deriveJSON jsonOptions ''OnSubmitAction)
 $(deriveJSON jsonOptions ''EmailInfo)
 $(deriveJSON jsonOptions ''AuthInfo)

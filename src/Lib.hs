@@ -51,8 +51,8 @@ mainPluginNames = M.keys mainPluginsByName
 embeddableNames :: [Plugins.EmbeddableName]
 embeddableNames =
 	M.keys (
-		embeddableLoadersByName
-		:: M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoaderContainer (ExceptT String IO))
+		embeddablesByName
+		:: M.Map Plugins.EmbeddableName Plugins.EmbeddableContainer
 	)
 
 mainPluginsByName ::
@@ -62,13 +62,12 @@ mainPluginsByName =
 	[ ("website", Plugins.MainLoaderContainer Site.load)
 	]
 
-embeddableLoadersByName ::
-	(MonadIO m, MonadError String m) =>
-	M.Map Plugins.EmbeddableName (Plugins.EmbeddableLoaderContainer m)
-embeddableLoadersByName =
+embeddablesByName ::
+	M.Map Plugins.EmbeddableName Plugins.EmbeddableContainer
+embeddablesByName =
 	M.fromList $
-	[ ("projDB", Plugins.EmbeddableLoaderContainer ProjDB.load)
-	, ("form", Plugins.EmbeddableLoaderContainer Form.load)
+	[ ("projDB", Plugins.EmbeddableContainer ProjDB.embeddable)
+	, ("form", Plugins.EmbeddableContainer Form.embeddable)
 	]
 
 type RoutesM = Spock.SpockM DBConn Session GlobalState
@@ -89,7 +88,7 @@ runHomepage Config{..} =
 		pluginsInitState <-
 			Plugins.loadAllPlugins
 				mainPluginsByName
-				embeddableLoadersByName
+				embeddablesByName
 				config_pluginsConfig
 		let initState = pluginsInitState
 		spockCfg <- lift $ calcSpockCfg $ initState

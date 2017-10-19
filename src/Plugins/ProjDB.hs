@@ -39,14 +39,13 @@ instance FromJSON ProjectsState where
 
 
 data Request
-	= Artists Filter
-	| Projects Filter
+	= Artists (Maybe Filter)
+	| Projects (Maybe Filter)
 	deriving( Show, Read)
 
 data Filter
-	= FilterAll
-	| FilterNot Filter
-	| FieldName `FilterEq` T.Text
+	= Not Filter
+	| FieldName `Equals` T.Text
 	deriving( Show, Read)
 
 genSection ::
@@ -55,21 +54,19 @@ genSection ::
 genSection r =
 	--((liftIO $ putStrLn $ "request: " ++ show r) >>) $
 	case r of
-		Artists filterExpr ->
-			ToWebDoc.artistsPage =<< (lift $ filterExprToFunc filterExpr)
-		Projects filterExpr ->
-			ToWebDoc.projectsPage =<< (lift $ filterExprToFunc filterExpr)
+		Artists mFilterExpr ->
+			ToWebDoc.artistsPage $ maybe (const True) filterExprToFunc mFilterExpr
+		Projects mFilterExpr ->
+			ToWebDoc.projectsPage $ maybe (const True) filterExprToFunc mFilterExpr
 
 filterExprToFunc ::
-	forall m a .
-	(MonadIO m, MonadError String m, ToJSON a) =>
-	Filter -> m (a -> Bool)
+	forall a .
+	(ToJSON a) =>
+	Filter -> a -> Bool
 filterExprToFunc = \case
-	FilterAll -> return $ const True
-	FilterNot subExpr ->
-		(not .) <$> filterExprToFunc subExpr
-	fieldName `FilterEq` val ->
-		return $
+	Not subExpr ->
+		(not .) $ filterExprToFunc subExpr
+	fieldName `Equals` val ->
 		\a ->
 			contains fieldName a val
 

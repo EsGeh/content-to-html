@@ -8,14 +8,15 @@ subsections:
         instance: "projArtists"
         params:
           artists:
-            filterall: []
       - content:
           text: "list of projects in the database:"
       - embeddable: "projDB"
         instance: "projProjects"
         params:
+          # list projects:
           projects:
-            filternot:
-              filtereq:
+            # filter criterium: \X -> not (artist X == "artistX")
+            not:
+              equals:
                 - "artist"
                 - "artistX"

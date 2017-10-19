@@ -12,15 +12,15 @@ module Plugins.ProjDB.Types where
 
 import Plugins.ProjDB.DB
 import Types.URI
+import qualified Utils.Lens as Lens
+import qualified Lens.Micro.Platform as Lens
 import Utils.JSONOptions
+import Utils.Yaml
 
 import Data.Aeson.TH
-import Data.Aeson
 import GHC.Generics
 import qualified Data.Text as T
 import qualified Data.Map as M
-import qualified Lens.Micro.Platform as Lns
-import qualified Language.Haskell.TH.Syntax as TH
 import Control.Monad.Reader
 import Control.Applicative
 
@@ -65,7 +65,6 @@ instance DB ProjDB ProjectKey Project where
 
 type Name = T.Text
 
---allArtists, allProjects, allPersons :: ProjDB -> [Name]
 allArtists :: ProjDB -> [ArtistKey]
 allArtists = M.keys . db_artists
 allProjects :: ProjDB -> [ProjectKey]
@@ -153,9 +152,7 @@ data Entry
 	| PersonEntry Person
 	deriving( Read, Show, Generic, Eq, Ord )
 
-flip Lns.makeLensesWith ''ProjDB $
-	Lns.lensRules
-		Lns.& Lns.lensField Lns..~ (\_ _ field -> [ Lns.TopName $ TH.mkName $ TH.nameBase field ++ "_L"])
+$(Lens.makeLensesWith Lens.lensRules' ''ProjDB)
 
 $(deriveJSON jsonOptions ''Person)
 $(deriveJSON jsonOptions ''Date)
@@ -171,9 +168,9 @@ instance FromJSON Entry where
 
 instance ToJSON Entry where
 	toJSON = \case
-			ArtistEntry x -> object [ "artist" .= toJSON x ]
-			ProjectEntry x -> object [ "project" .= toJSON x ]
-			PersonEntry x -> object [ "person" .= toJSON x ]
+		ArtistEntry x -> object [ "artist" .= toJSON x ]
+		ProjectEntry x -> object [ "project" .= toJSON x ]
+		PersonEntry x -> object [ "person" .= toJSON x ]
 
 instance FromJSON Artist where
 	parseJSON (Object x) =
@@ -279,13 +276,13 @@ projDBDef = ProjDB M.empty M.empty M.empty
 
 insertArtist :: Artist -> ProjDB -> ProjDB
 insertArtist x =
-	Lns.over db_artists_L $
+	Lens.over db_artists_L $
 		M.insert (artist_name x) x
 insertPerson :: Person -> ProjDB -> ProjDB
 insertPerson x =
-	Lns.over db_persons_L $
+	Lens.over db_persons_L $
 		M.insert (person_name x) x
 insertProject :: Project -> ProjDB -> ProjDB
 insertProject x =
-	Lns.over db_projects_L $
+	Lens.over db_projects_L $
 		M.insert (project_name x) x

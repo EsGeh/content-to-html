@@ -57,26 +57,21 @@ select cond = ask >>= \db ->
 	mapMaybe (dbLookup db) $
 	dbKeys db
 
+-- |test if `cont` has a `field` CONTAINING the value `val`
 contains :: Yaml.ToJSON a => FieldName -> a -> T.Text -> Bool
 contains field cont val =
 	contains' $ Yaml.toJSON cont
 	where
 		contains' :: Yaml.Value -> Bool
 		contains' (Yaml.Object m) =
-			fromMaybe False $
-			HM.lookup (fromFieldName field) m >>= \case
-				Yaml.String s -> return $ (s == val)
+			maybe False `flip` HM.lookup (fromFieldName field) m $ \case
+				Yaml.String s -> s == val
 				Yaml.Array a ->
-				{-
-					return $
-					val `Vec.elem` a
-				-}
-					return $
 					or $
 					fmap `flip` a $ \case
 						Yaml.String s -> s == val
 						_ -> False
-				_ -> Nothing
+				_ -> False
 		contains' _ = False
 
 getFieldVal :: Yaml.ToJSON a => FieldName -> a -> Maybe T.Text

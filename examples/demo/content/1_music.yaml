@@ -17,5 +17,5 @@ subsections:
           projects:
             filternot:
               filtereq:
-                - fromFieldName: "artists"
+                - "artist"
                 - "artistX"

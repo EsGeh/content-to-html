@@ -192,7 +192,7 @@ data FormEntry
 		formEntry_caption :: T.Text,
 		formEntry_type :: FormEntryType,
 		formEntry_name :: T.Text,
-		formEntry_defValue :: T.Text
+		formEntry_default :: T.Text
 	}
 	deriving( Show, Read, Eq, Ord, Generic  )
 

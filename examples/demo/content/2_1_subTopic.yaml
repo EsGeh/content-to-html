@@ -5,6 +5,19 @@ subsections:
     instance: "/userfeedback"
     params:
       onSubmit: sendemail
+      formFields:
+        - caption: "please enter your email adress"
+          type: textinput
+          name: "email"
+          default: "test@example.com"
+        - caption: "message"
+          type: textareainput
+          name: "message"
+          default: "your message ..."
+        - caption: "send"
+          type: submitinput
+          name: "submit"
+          default: "submit"
       email:
         from:
           addressName: "testForm"

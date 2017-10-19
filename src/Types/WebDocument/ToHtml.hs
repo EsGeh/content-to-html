@@ -117,9 +117,9 @@ formEntryToHtml FormEntry{..} =
 	(toHtml formEntry_caption <>) $
 	case formEntry_type of
 		TextAreaInput ->
-			textarea_ [name_ formEntry_name] $ toHtml formEntry_defValue
+			textarea_ [name_ formEntry_name] $ toHtml formEntry_default
 		_ ->
-			input_ [type_ $ formEntryTypeToText $ formEntry_type, name_ formEntry_name, value_ formEntry_defValue]
+			input_ [type_ $ formEntryTypeToText $ formEntry_type, name_ formEntry_name, value_ formEntry_default]
 
 renderSection :: Attributes -> Int -> Maybe Title -> Html () -> Html ()
 renderSection attributes _ mTitle content =

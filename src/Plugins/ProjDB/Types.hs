@@ -86,12 +86,6 @@ projectsFromArtist key db =
 	M.filter ((key `elem`) . project_artist) $
 	db_projects db
 
-data Entry
-	= ArtistEntry Artist
-	| ProjectEntry Project
-	| PersonEntry Person
-	deriving( Read, Show, Generic, Eq, Ord )
-
 data Artist
 	= Artist {
 		artist_name :: ArtistKey, -- key
@@ -152,6 +146,12 @@ data Date
 	= Date
 	deriving( Read, Show, Generic, Eq, Ord )
 
+-- |just for simpler serialisation:
+data Entry
+	= ArtistEntry Artist
+	| ProjectEntry Project
+	| PersonEntry Person
+	deriving( Read, Show, Generic, Eq, Ord )
 
 flip Lns.makeLensesWith ''ProjDB $
 	Lns.lensRules

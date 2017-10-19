@@ -18,15 +18,27 @@ import qualified Data.Aeson.TH as Yaml
 import qualified Data.HashMap.Lazy as HM
 
 
-runReadDBT :: ReaderT db m a -> db -> m a
-runReadDBT = runReaderT
-
 class
 		(HasKey val key) =>
 		DB db key val | db val -> key, db key -> val
 	where
 		dbLookup :: db -> key -> Maybe val
 		dbKeys :: db -> [key]
+
+class HasKey val key | val -> key where
+	getKey :: val -> key
+
+class FromKey a where
+	fromKey :: a -> T.Text
+
+class HasField cont field where
+	getField :: FieldName -> cont -> Maybe field
+
+newtype FieldName = FieldName { fromFieldName :: T.Text }
+	deriving( Eq, Ord, Show, Read)
+
+runReadDBT :: ReaderT db m a -> db -> m a
+runReadDBT = runReaderT
 
 lookupDB ::
 	(Monad m, DB db key val) =>
@@ -44,15 +56,6 @@ select cond = ask >>= \db ->
 	filter cond $
 	mapMaybe (dbLookup db) $
 	dbKeys db
-
-class HasKey val key | val -> key where
-	getKey :: val -> key
-
-class FromKey a where
-	fromKey :: a -> T.Text
-
-class HasField cont field where
-	getField :: FieldName -> cont -> Maybe field
 
 contains :: Yaml.ToJSON a => FieldName -> a -> T.Text -> Bool
 contains field cont val =
@@ -87,8 +90,12 @@ getFieldVal field cont =
 				_ -> Nothing
 		getFieldVal' _ = Nothing
 
-newtype FieldName = FieldName { fromFieldName :: T.Text }
-	deriving( Eq, Ord, Show, Read)
+instance Yaml.FromJSON FieldName where
+	parseJSON = (FieldName <$>) . Yaml.parseJSON
+
+instance Yaml.ToJSON FieldName where
+	toJSON = Yaml.toJSON . fromFieldName
+	--parseJSON = (FieldName <$>) . Yaml.parseJSON
 
 {-
 class CanContain a b where
@@ -101,4 +108,4 @@ instance (Eq a) => CanContain [a] a where
 	contains l x = x `elem` l
 -}
 
-$(Yaml.deriveJSON Yaml.jsonOptions ''FieldName)
+-- $(Yaml.deriveJSON Yaml.jsonOptions ''FieldName)

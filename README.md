@@ -10,15 +10,16 @@ Warning: This is a work in progress.
 * appereance highly configurable via css
 * html properties highly configurable for most html elements (this includes css classes).
 * structured text content is entered in [YAML](yaml.org) format. No html needed!
-* most functionality is realized via "Plugins". These are conceptual entities wich can be included into any secion of the website to embed specific functionality. Currently the following plugins are available:
-	* "website" Plugin: Hierarchy of visual content with navigation menu
-		* text paragraphs
-		* image
-		* audio
-		* download link
-		* html forms
-	* "projDB" Plugin: a "database" of persons, artists, and projects. This can be used to display information about your own projects, and give recommendations of things that you like.
-	* "form" Plugin: email form for user feedback
+* all content is being rendered by the "website" plugin (propably this is the only plugin ever needed). When configured correctly via yaml files it will render a nice html view: a hierarchy of visual content with navigation menu. Currently the following types of content are supported:
+	* text paragraphs
+	* image
+	* audio
+	* download link
+	* html forms
+
+* functionality can easily be extended via "embeddables". These are conceptual entities wich can be included into any secion of the website to embed specific functionality. Currently the following embeddables are available:
+	* "projDB": a "database" of persons, artists, and projects. This can be used to display information about your own projects, and give recommendations of things that you like.
+	* "form": email form for user feedback
 
 ## Dependencies
 

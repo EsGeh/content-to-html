@@ -116,6 +116,15 @@ contentToHtml formAttributes@FormAttributes{..} x =
 		Form FormInfo{..} ->
 			form_ ([action_ $ form_action, method_ $ T.pack $ show form_method] ++ (attributesToLucid formAttributes_form)) $
 				mconcat $ map `flip` form_content $ formEntryToHtml formAttributes
+		List listInfo -> renderList listInfo
+
+
+renderList :: ListInfo -> Html ()
+renderList ListInfo{..} =
+	(if list_ordered then ol_ else ul_) (attributesToLucid list_attributes) $
+	mconcat $ map `flip` list_content $ \ListEntryInfo{..} ->
+		li_ (attributesToLucid listEntry_attributes) $
+			either toHtml renderList listEntry_content
 
 formEntryToHtml :: FormAttributes -> FormEntry -> Html ()
 formEntryToHtml FormAttributes{..} FormEntry{..} =

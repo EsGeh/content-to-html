@@ -22,11 +22,6 @@ body {
 	/* border: 1px solid grey; */
 }
 
-ul, li {
-	margin: 0;
-	border: 0;
-	padding: 0;
-}
 a {
 	text-decoration: none;
 }
@@ -39,6 +34,10 @@ a {
 
 	/*background-color: white;*/
 	/* border: 1px solid grey; */
+
+	margin: 0;
+	border: 0;
+	padding: 0;
 }
 
 .menuentry, .menucategory {

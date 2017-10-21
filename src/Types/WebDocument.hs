@@ -5,17 +5,21 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
 module Types.WebDocument where
 
 import Utils.JSONOptions
 import Types.URI
-import Utils.Yaml
+import Utils.Yaml as Yaml
 
 import qualified Data.Text as T
 import Data.Aeson.TH
 import qualified Data.Map as M
 import GHC.Generics
 import Control.Monad.Identity
+import Control.Applicative
 import Data.Maybe
 
 
@@ -160,6 +164,7 @@ data WebContent
 	| Audio URI
 	| Download DownloadInfo
 	| Form FormInfo
+	| List ListInfo
 	deriving( Show, Read, Eq, Ord, Generic  )
 
 data FormInfo
@@ -169,6 +174,73 @@ data FormInfo
 		form_method :: FormMethod
 	}
 	deriving( Show, Read, Eq, Ord, Generic  )
+data ListInfo
+	= ListInfo {
+		list_attributes :: Attributes,
+		list_content :: [ListEntryInfo],
+		list_ordered :: Bool
+	}
+	deriving( Show, Read, Eq, Ord, Generic  )
+
+data ListEntryInfo
+	= ListEntryInfo {
+		listEntry_content :: Either T.Text ListInfo,
+		listEntry_attributes :: Attributes
+	}
+	deriving( Show, Read, Eq, Ord, Generic  )
+
+defListInfo = ListInfo{
+	list_attributes = M.empty,
+	list_content = [],
+	list_ordered = False
+}
+
+defListEntryInfo = ListEntryInfo{
+	listEntry_content = Left "",
+	listEntry_attributes = M.empty
+}
+
+instance FromJSON ListEntryInfo where
+	parseJSON x@(Object o) =
+		do
+			attributes <- o .:? "attributes" .!= (listEntry_attributes defListEntryInfo)
+			content <-
+				(Left <$> o .: "content")
+				<|>
+				(Right <$> o.: "list")
+			return $ ListEntryInfo content attributes
+	parseJSON x@(String _) =
+		do
+			content <- Left <$> parseJSON x
+			return $ defListEntryInfo{ listEntry_content = content }
+	parseJSON _ = mempty
+
+instance ToJSON ListEntryInfo where
+	toJSON ListEntryInfo{..} =
+		object $
+			[ "attributes" .= listEntry_attributes
+			, "content" .= listEntry_content
+			]
+
+instance ToJSON ListInfo where
+	toJSON ListInfo{..} =
+		object $
+			[ "attributes" .= list_attributes
+			, "content" .= list_content
+			, "ordered" .= list_ordered
+			]
+
+instance FromJSON ListInfo where
+	parseJSON (Object o) =
+		ListInfo <$>
+			o .:? "attributes" .!= (list_attributes defListInfo) <*>
+			o .: "content" <*>
+			o .:? "ordered" .!= (list_ordered defListInfo)
+	parseJSON a@(Array _) =
+		do
+			content <- parseJSON a
+			return $ defListInfo{ list_content = content }
+	parseJSON _ = mempty
 
 data FormMethod
 	= Get
@@ -224,3 +296,5 @@ $(deriveJSON jsonOptions ''FormInfo)
 $(deriveJSON jsonOptions ''FormMethod)
 $(deriveJSON jsonOptions ''FormEntry)
 $(deriveJSON jsonOptions ''FormEntryType)
+-- $(deriveJSON jsonOptions ''ListInfo)
+-- $(deriveJSON jsonOptions ''ListEntryInfo)

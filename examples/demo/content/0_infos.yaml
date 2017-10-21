@@ -3,4 +3,14 @@ subsections:
   - title: introduction
     content:
       text: bla bla bla bla
+  - title: bla
+    content:
+      list:
+        - "one"
+        - "two"
+        - "three"
+        - list:
+          - "a"
+          - "b"
+          - "c"
 attributes: {"class": "article"}

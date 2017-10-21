@@ -140,7 +140,7 @@ sendResource attributesConfig req resource =
 				lift $ Spock.writeSession $ Session req
 				lift . Spock.html . LT.toStrict . Lucid.renderText . pageWithNavToHtml attributesConfig $ page
 		PageResource page ->
-			(lift . Spock.html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig)) page
+			(lift . Spock.html . LT.toStrict . Lucid.renderText . sectionToHtml (attributes_sectionHeading attributesConfig) (attributes_section attributesConfig) (attributes_formAttributes attributesConfig)) page
 		FileResource FileResInfo{..} ->
 			lift $ Spock.file (fromResType $ fileRes_type) $ fileRes_file
 

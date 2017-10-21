@@ -40,6 +40,7 @@ embeddable = Plugins.defaultEmbeddable {
 type Config = SMTPConfig
 data Params
 	= Params{
+		params_caption :: Maybe T.Text,
 		params_email :: EmailInfo,
 		params_onSubmit :: OnSubmitAction,
 		params_formFields :: [FormEntry]
@@ -90,44 +91,19 @@ data AuthInfo
 	}
 	deriving (Generic, Show, Read)
 
-{-
-formInfo :: String -> FormInfo
-formInfo prefix = FormInfo{
-	form_content =
-		[ FormEntry{
-				formEntry_caption = "test:",
-				formEntry_type = TextAreaInput,
-				formEntry_name = "input",
-				formEntry_defValue = "please enter your message here..."
-			}
-		, FormEntry{
-				formEntry_caption = "",
-				formEntry_type = SubmitInput,
-				formEntry_name = "Submit",
-				formEntry_defValue = "Submit"
-			}
-		],
-	form_action = T.pack $ prefix,
-	form_method = Get
-}
--}
-
-
 embedd ::
 	(MonadIO m, MonadError String m) =>
 	Plugins.EmbeddableInstanceID -> Params -> Plugins.RunReqT Config m Section
 embedd instanceId Params{..} =
 	get >>= \_ ->
 		return $ SectionEntry $ SectionInfo{
-			section_title = Just "testForm",
+			section_title = params_caption,
 			section_content =
 				Form $ FormInfo{
 					form_content = params_formFields,
 					form_action = T.pack $ instanceId,
 					form_method = Get
 				},
-				--Form $ formInfo instanceId,
-
 			section_attributes = attributes_empty
 		}
 
@@ -141,7 +117,6 @@ handleFormData Params{ params_email=EmailInfo{..}, ..} (uri,params) =
 		do
 			_ <- case params_onSubmit of
 				SendEmail ->
-				-- SendEmail EmailInfo{ email_hostname, email_port, email_auth = mAuthInfo, ..} ->
 					liftIO $
 					Email.doSMTPSTARTTLSWithSettings
 						email_hostname

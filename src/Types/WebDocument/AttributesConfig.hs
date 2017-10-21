@@ -22,7 +22,18 @@ data AttributesCfg
 		attributes_mainSection :: Attributes,
 		attributes_menuClasses :: MenuAttributes,
 		attributes_sectionHeading :: [Attributes],
-		attributes_section :: [Attributes]
+		attributes_section :: [Attributes],
+		attributes_formAttributes :: FormAttributes
+	}
+	deriving( Eq, Ord, Show, Read, Generic )
+
+data FormAttributes
+	= FormAttributes {
+		formAttributes_form :: Attributes,
+		formAttributes_inputFieldDiv :: Attributes,
+		formAttributes_label :: Attributes,
+		formAttributes_textArea :: Attributes,
+		formAttributes_input :: Attributes
 	}
 	deriving( Eq, Ord, Show, Read, Generic )
 
@@ -56,3 +67,4 @@ instance FromJSON MenuEntryAttributes where
 
 $(deriveJSON jsonOptions ''AttributesCfg)
 $(deriveJSON jsonOptions ''MenuAttributes)
+$(deriveJSON jsonOptions ''FormAttributes)

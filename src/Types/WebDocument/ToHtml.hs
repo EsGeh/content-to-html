@@ -22,7 +22,12 @@ pageWithNavToHtml attributes PageWithNav{..} =
 		nav_ (attributesToLucid $ attributes_menuSection attributes) $
 			div_ [ class_ $ T.pack "container-fluid"] $
 			navToHtml (attributes_menuClasses attributes) pageWithNav_nav
-		div_ (attributesToLucid $ attributes_mainSection attributes) $ sectionToHtml ( attributes_sectionHeading attributes) (attributes_section attributes) pageWithNav_page
+		div_ (attributesToLucid $ attributes_mainSection attributes) $
+			sectionToHtml
+				(attributes_sectionHeading attributes)
+				(attributes_section attributes)
+				(attributes_formAttributes attributes)
+				pageWithNav_page
 
 htmlHeader :: HeaderInfo -> Title -> Html () -> Html ()
 htmlHeader HeaderInfo{..} title content =
@@ -74,15 +79,15 @@ linkToHtml attributes Link{..} =
 	a_ ([href_ . T.pack . fromURI $ link_dest] ++ attributesToLucid attributes) $
 		toHtml $ T.unpack link_caption
 
-sectionToHtml :: [Attributes] -> [Attributes] -> Section -> Html ()
-sectionToHtml attributesHeading_ attributes_ = sectionToHtml' attributesHeading_ attributes_ 0
+sectionToHtml :: [Attributes] -> [Attributes] -> FormAttributes -> Section -> Html ()
+sectionToHtml attributesHeading_ attributes_ formAttributes = sectionToHtml' attributesHeading_ attributes_ 0
 	where
 		sectionToHtml' :: [Attributes] -> [Attributes] -> Int -> Section -> Html ()
 		sectionToHtml' attributesHeading attributes depth x =
 			div_ sectionAttributes $
 			renderSection attributesHeadingHead depth (sectionTitle x) $
 			eitherSection
-				(contentToHtml . section_content)
+				(contentToHtml formAttributes . section_content)
 				(mconcat . map (sectionToHtml' (tailIfNotEmpty attributesHeading) (tailIfNotEmpty attributes) $ depth+1) . section_content) $
 			x
 			where
@@ -94,8 +99,8 @@ sectionToHtml attributesHeading_ attributes_ = sectionToHtml' attributesHeading_
 				attributesHeadingHead = head $ attributesHeading
 				attributesHead = head $ attributes
 
-contentToHtml :: WebContent -> Html ()
-contentToHtml x =
+contentToHtml :: FormAttributes -> WebContent -> Html ()
+contentToHtml formAttributes@FormAttributes{..} x =
 	case x of
 		Text text ->
 			p_ $ toHtml text
@@ -109,17 +114,18 @@ contentToHtml x =
 		Download DownloadInfo{..} ->
 			a_ [href_ . T.pack . fromURI $ download_uri, download_ "" ] $ toHtml $ T.unpack download_caption
 		Form FormInfo{..} ->
-			form_ [action_ $ form_action, method_ $ T.pack $ show form_method] $
-				mconcat $ map `flip` form_content $ formEntryToHtml
+			form_ ([action_ $ form_action, method_ $ T.pack $ show form_method] ++ (attributesToLucid formAttributes_form)) $
+				mconcat $ map `flip` form_content $ formEntryToHtml formAttributes
 
-formEntryToHtml :: FormEntry -> Html ()
-formEntryToHtml FormEntry{..} =
-	(toHtml formEntry_caption <>) $
+formEntryToHtml :: FormAttributes -> FormEntry -> Html ()
+formEntryToHtml FormAttributes{..} FormEntry{..} =
+	div_ (attributesToLucid formAttributes_inputFieldDiv) $
+	label_ (attributesToLucid formAttributes_label) (toHtml formEntry_caption) <>
 	case formEntry_type of
 		TextAreaInput ->
-			textarea_ [name_ formEntry_name] $ toHtml formEntry_default
+			textarea_ ([name_ formEntry_name] ++ attributesToLucid formAttributes_textArea) $ toHtml formEntry_default
 		_ ->
-			input_ [type_ $ formEntryTypeToText $ formEntry_type, name_ formEntry_name, value_ formEntry_default]
+			input_ ([type_ $ formEntryTypeToText $ formEntry_type, name_ formEntry_name, value_ formEntry_default] ++ attributesToLucid formAttributes_input)
 
 renderSection :: Attributes -> Int -> Maybe Title -> Html () -> Html ()
 renderSection attributes _ mTitle content =

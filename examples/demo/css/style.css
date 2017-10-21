@@ -80,3 +80,20 @@ a {
 	border: 1px solid grey;
 	box-shadow: 2px 2px 5px grey;
 }
+
+.input-div {
+	padding: 0.5rem;
+}
+
+.input-caption {
+}
+
+.input {
+	width: 100%;
+	display: inline-block;
+}
+
+.textarea {
+	height: 20rem;
+	resize: vertical;
+}

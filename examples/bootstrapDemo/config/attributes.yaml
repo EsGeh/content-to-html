@@ -23,3 +23,12 @@ section:
   - {"class": "section depth-2" }
   - {"class": "section depth-3" }
   - {"class": "section depth-4" }
+formAttributes:
+  form: {}
+  inputFieldDiv:
+    class: form-group
+  label: {}
+  textArea:
+    class: form-control
+  input:
+    class: form-control

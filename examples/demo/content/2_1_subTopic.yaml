@@ -4,6 +4,7 @@ subsections:
   - embeddable: "form"
     instance: "/userfeedback"
     params:
+      caption: feedback form
       onSubmit: sendemail
       formFields:
         - caption: "please enter your email adress"

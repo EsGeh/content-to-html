@@ -43,7 +43,8 @@ data Params
 		params_caption :: Maybe T.Text,
 		params_email :: EmailInfo,
 		params_onSubmit :: OnSubmitAction,
-		params_formFields :: [FormEntry]
+		params_formFields :: [FormEntry],
+		params_method :: FormMethod
 	}
 	deriving (Generic, Show, Read)
 
@@ -102,7 +103,7 @@ embedd instanceId Params{..} =
 				Form $ FormInfo{
 					form_content = params_formFields,
 					form_action = T.pack $ instanceId,
-					form_method = Get
+					form_method = params_method
 				},
 			section_attributes = attributes_empty
 		}

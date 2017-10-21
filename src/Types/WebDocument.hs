@@ -173,19 +173,7 @@ data FormInfo
 data FormMethod
 	= Get
 	| Post
-	deriving( Eq, Ord, Generic  )
-
-instance Show FormMethod where
-	show Get = "get"
-	show Post = "post"
-
-instance Read FormMethod where
-	readsPrec = \case
-		{-
-		"get" -> Get
-		"post" -> Post
-		-}
-		_ -> error "read FormMethod error"
+	deriving( Show, Read, Eq, Ord, Generic  )
 
 data FormEntry
 	= FormEntry {

@@ -107,7 +107,16 @@ runHomepage Config{..} =
 spockRoutes :: AttributesCfg -> RoutesM ()
 spockRoutes attributesConfig =
 	Spock.getState >>= \pluginsState ->
-	Spock.hookAny Spock.GET $ ( . uriFromList . map T.unpack) $ \fullUri ->
+		do
+			Spock.hookAny Spock.GET $ ( . uriFromList . map T.unpack) $ handleRequest attributesConfig pluginsState
+			Spock.hookAny Spock.POST $ ( . uriFromList . map T.unpack) $ handleRequest attributesConfig pluginsState
+
+handleRequest ::
+	AttributesCfg
+	-> Plugins.AllPlugins
+	-> URI
+	-> Spock.ActionCtxT ctx (Spock.WebStateM conn Session st) a
+handleRequest attributesConfig pluginsState fullUri =
 	let
 		(uriPref, req) = uriSplitPrefix $ fullUri
 	in

@@ -6,6 +6,7 @@ subsections:
     params:
       caption: feedback form
       onSubmit: sendemail
+      method: "post"
       formFields:
         - caption: "please enter your email adress"
           type: textinput

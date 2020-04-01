@@ -1,4 +1,4 @@
-# sgHomePage
+# content2html - simple website based on structured text files
 
 ## Disclaimer
 

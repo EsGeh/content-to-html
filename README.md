@@ -51,11 +51,11 @@ static compilation requires docker to be installed
 
 ## Credits
 
-[haskell web framework](https://hackage.haskell.org/package/Spock)
+[Spock](https://hackage.haskell.org/package/Spock)
 
 * static compilation is based on:
 
-	* [](https://github.com/dkubb/haskell-builder)
-	* [](https://www.fpcomplete.com/blog/2016/10/static-compilation-with-stack)
+	* [haskell-builder](https://github.com/dkubb/haskell-builder)
+	* [this blog post](https://www.fpcomplete.com/blog/2016/10/static-compilation-with-stack)
 
 * [docker container used](https://github.com/mitchty/alpine-ghc)
